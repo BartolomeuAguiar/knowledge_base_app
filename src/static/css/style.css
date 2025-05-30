@@ -237,3 +237,16 @@ main {
     justify-content: flex-end;
   }
 }
+
+/* Correção do modal de imagem do Summernote sobreposto por backdrop do Bootstrap */
+.note-modal {
+  z-index: 1060 !important; /* Acima do backdrop padrão (1050) */
+}
+
+.note-editor .note-modal-backdrop {
+  display: none !important; /* Remove camada escura incorreta */
+}
+
+.note-modal .modal-dialog {
+  pointer-events: auto;
+}
