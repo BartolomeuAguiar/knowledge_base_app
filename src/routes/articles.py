@@ -263,3 +263,27 @@ def delete_article(article_id):
     
     flash('Artigo excluído com sucesso.', 'success')
     return redirect(url_for('articles.list_articles'))
+
+@articles_bp.route('/<int:article_id>/upload-image', methods=['POST'])
+@login_required
+def upload_article_image(article_id):
+    article = check_article_permission(article_id, edit=True)
+    if not article:
+        return jsonify({'error': 'Sem permissão'}), 403
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'Arquivo não encontrado'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'Nome de arquivo inválido'}), 400
+
+    filename = secure_filename(file.filename)
+    file_id = str(uuid.uuid4())
+    upload_dir = os.path.join(current_app.static_folder, 'uploads', 'articles', str(article_id))
+    os.makedirs(upload_dir, exist_ok=True)
+    file_path = os.path.join(upload_dir, file_id + "_" + filename)
+    file.save(file_path)
+
+    file_url = url_for('static', filename=f'uploads/articles/{article_id}/{file_id}_{filename}', _external=True)
+    return jsonify({'url': file_url})

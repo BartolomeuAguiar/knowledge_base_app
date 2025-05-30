@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
+
 <div class="row mb-4">
     <div class="col-md-8">
         <h2>
@@ -243,10 +244,27 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- TinyMCE -->
-<script src="https://cdn.ckeditor.com/4.16.2/standard/ckeditor.js"></script>
+    <!-- Summernote -->
+    <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-lite.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-lite.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script> <!-- onde está initSummernote -->
 
-<!-- Select2 -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <!-- Select2 -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            $('#editor').summernote({
+                placeholder: 'Escreva o conteúdo do artigo aqui...',
+                tabsize: 2,
+                height: 300
+            });
+
+            $('.select2-tags').select2({
+                tags: true,
+                tokenSeparators: [',']
+            });
+        });
+    </script>
 {% endblock %}

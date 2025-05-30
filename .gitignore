@@ -1,3 +1,19 @@
+# Ignorar todos os arquivos da pasta uploads, exceto o .gitkeep
+uploads/*
+!uploads/.gitkeep
+
+src/static/uploads/*
+!src/static/uploads/.gitkeep
+
+# Ignorar arquivos temporários e de teste
+*.tmp
+*.log
+*.bak
+__pycache__/
+*.pyc
+*.sqlite3
+.env
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -1,54 +1,42 @@
 // Scripts personalizados para a Base de Conhecimento TIC
 
-// Inicialização do TinyMCE para o editor de artigos
-function initTinyMCE() {
-    if (typeof tinymce !== 'undefined' && document.querySelector('#editor')) {
-        tinymce.init({
-            selector: '#editor',
-            height: 500,
-            menubar: true,
-            plugins: [
-                'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-                'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                'insertdatetime', 'media', 'table', 'help', 'wordcount'
-            ],
-            toolbar: 'undo redo | formatselect | ' +
-                'bold italic backcolor | alignleft aligncenter ' +
-                'alignright alignjustify | bullist numlist outdent indent | ' +
-                'removeformat | image | help',
-            content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 16px; }',
-            images_upload_handler: function (blobInfo, success, failure) {
-                var xhr, formData;
-                xhr = new XMLHttpRequest();
-                xhr.withCredentials = false;
-                xhr.open('POST', '/files/upload');
-                
-                xhr.onload = function() {
-                    var json;
-                    
-                    if (xhr.status != 200) {
-                        failure('Erro ao fazer upload da imagem: ' + xhr.status);
-                        return;
-                    }
-                    
-                    json = JSON.parse(xhr.responseText);
-                    
-                    if (!json || !json.success) {
-                        failure('Erro ao fazer upload da imagem: ' + (json && json.message ? json.message : 'Erro desconhecido'));
-                        return;
-                    }
-                    
-                    success('/files/' + json.file_id + '/download');
-                };
-                
-                formData = new FormData();
-                formData.append('file', blobInfo.blob(), blobInfo.filename());
-                
-                xhr.send(formData);
+function initSummernote() {
+    if (typeof $ !== 'undefined' && $('#editor').length > 0) {
+        $('#editor').summernote({
+            placeholder: 'Escreva o conteúdo do artigo aqui...',
+            tabsize: 2,
+            height: 300,
+            callbacks: {
+                onImageUpload: function(files) {
+                    uploadSummernoteImage(files[0]);
+                }
             }
         });
     }
 }
+
+function uploadSummernoteImage(file) {
+    const data = new FormData();
+    data.append("file", file);
+    const articleId = document.getElementById('article-id')?.value || '';
+
+    fetch(`/articles/${articleId}/upload-image`, {
+        method: "POST",
+        body: data
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.url) {
+            $('#editor').summernote('insertImage', data.url);
+        } else {
+            alert("Erro ao enviar imagem.");
+        }
+    })
+    .catch(() => {
+        alert("Erro ao enviar imagem.");
+    });
+}
+
 
 // Inicialização do Select2 para seleção de tags
 function initSelect2() {
@@ -211,7 +199,7 @@ function initArticleSearch() {
 
 // Inicialização quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', function() {
-    initTinyMCE();
+    initSummernote();
     initSelect2();
     initFileUpload();
     initFileAssociation();
