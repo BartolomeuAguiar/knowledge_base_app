@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2><i class="fas fa-file-archive me-2"></i>Arquivos</h2>
+    </div>
+    <div class="col-md-4 text-md-end">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadFileModal">
+            <i class="fas fa-upload me-2"></i>Fazer Upload
+        </button>
+    </div>
+</div>
+
+<!-- Lista de arquivos -->
+<div class="card shadow">
+    <div class="card-body">
+        {% if files %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Arquivo</th>
+                        <th>Tipo</th>
+                        <th>Tamanho</th>
+                        <th>Enviado por</th>
+                        <th>Data</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for file in files %}
+                    <tr>
+                        <td>
+                            <i class="fas {% if file.is_pdf %}fa-file-pdf{% elif file.is_zip %}fa-file-archive{% elif file.is_image %}fa-file-image{% else %}fa-file{% endif %} me-2"></i>
+                            {{ file.original_filename }}
+                        </td>
+                        <td>{{ file.mime_type }}</td>
+                        <td>{{ (file.file_size / 1024)|round(1) }} KB</td>
+                        <td>{{ file.uploader.username }}</td>
+                        <td>{{ file.uploaded_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('files.download_file', file_id=file.id) }}" class="btn btn-outline-primary" title="Download">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                                {% if current_user.is_admin() or file.uploaded_by == current_user.id %}
+                                <button type="button" class="btn btn-outline-danger" onclick="if(confirmAction('Tem certeza que deseja excluir este arquivo?')) document.getElementById('delete-file-form-{{ file.id }}').submit();" title="Excluir">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                <form id="delete-file-form-{{ file.id }}" action="{{ url_for('files.delete_file', file_id=file.id) }}" method="POST" style="display: none;"></form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>Nenhum arquivo encontrado.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal de Upload de Arquivo -->
+<div class="modal fade" id="uploadFileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-upload me-2"></i>Upload de Arquivo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <form id="file-upload-form" action="{{ url_for('files.upload_file') }}" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="file-input" class="form-label">Selecione o arquivo</label>
+                        <input type="file" class="form-control" id="file-input" name="file" required>
+                    </div>
+                    <div id="file-preview" class="mb-3"></div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Descrição do arquivo (opcional)</label>
+                        <input type="text" class="form-control" id="description" name="description" placeholder="Breve descrição do conteúdo do arquivo...">
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-2"></i>Fazer Upload
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

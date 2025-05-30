@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="jumbotron bg-light p-5 rounded shadow-sm mb-4">
+            <h1 class="display-4"><i class="fas fa-book-open me-3"></i>Base de Conhecimento TIC</h1>
+            <p class="lead">Sistema de gerenciamento de base de conhecimento para o setor de gerenciamento e suporte de TIC.</p>
+            <hr class="my-4">
+            <p>Organize, compartilhe e acesse procedimentos operacionais padrão, manuais e documentação técnica em um único lugar.</p>
+            {% if current_user.is_authenticated %}
+            <a class="btn btn-primary btn-lg" href="{{ url_for('articles.list_articles') }}">
+                <i class="fas fa-file-alt me-2"></i>Ver Artigos
+            </a>
+            {% else %}
+            <a class="btn btn-primary btn-lg" href="{{ url_for('auth.login') }}">
+                <i class="fas fa-sign-in-alt me-2"></i>Entrar no Sistema
+            </a>
+            {% endif %}
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card shadow h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-file-alt fa-3x text-primary mb-3"></i>
+                        <h4 class="card-title">Procedimentos Operacionais</h4>
+                        <p class="card-text">Crie e gerencie POPs com um editor HTML robusto, incluindo imagens e formatação avançada.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-folder-open fa-3x text-primary mb-3"></i>
+                        <h4 class="card-title">Organização Inteligente</h4>
+                        <p class="card-text">Categorize e organize artigos com tags personalizadas para facilitar a busca e o acesso.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-file-archive fa-3x text-primary mb-3"></i>
+                        <h4 class="card-title">Gestão de Arquivos</h4>
+                        <p class="card-text">Armazene e referencie arquivos PDF, ZIP e imagens diretamente nos artigos da base de conhecimento.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card shadow h-100">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="fas fa-search me-2"></i>Busca Avançada</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>Encontre rapidamente o que precisa com busca por:</p>
+                        <ul>
+                            <li>Título do artigo</li>
+                            <li>Conteúdo do documento</li>
+                            <li>Categoria ou tags</li>
+                            <li>Status do documento</li>
+                        </ul>
+                        <p>Filtre resultados por status, incluindo a opção de visualizar documentos arquivados quando necessário.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card shadow h-100">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="fas fa-user-shield me-2"></i>Controle de Acesso</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>Sistema completo de controle de acesso com diferentes níveis de permissão:</p>
+                        <ul>
+                            <li><strong>Administradores:</strong> Controle total do sistema</li>
+                            <li><strong>Editores:</strong> Criação e edição de conteúdo</li>
+                            <li><strong>Usuários:</strong> Visualização de documentos homologados</li>
+                        </ul>
+                        <p>Fluxo de trabalho com status de documentos: rascunho, em análise, homologado e arquivado.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
