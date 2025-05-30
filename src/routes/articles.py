@@ -160,6 +160,7 @@ def new_article():
 @login_required
 def edit_article(article_id):
     article = check_article_permission(article_id, edit=True)
+    
     if not article:
         return redirect(url_for('articles.list_articles'))
     
@@ -174,7 +175,14 @@ def edit_article(article_id):
             flash('Título e conteúdo são obrigatórios.', 'danger')
             categories = Category.query.all()
             tags = Tag.query.all()
-            return render_template('articles/edit.html', article=article, categories=categories, tags=tags)
+            files = File.query.order_by(File.created_at.desc()).all()
+            return render_template(
+                'articles/edit.html',
+                article=article,
+                categories=categories,
+                tags=tags,
+                files=files
+            )
         
         # Atualizar artigo
         article.title = title
@@ -207,7 +215,17 @@ def edit_article(article_id):
     # GET - Exibir formulário
     categories = Category.query.all()
     tags = Tag.query.all()
-    return render_template('articles/edit.html', article=article, categories=categories, tags=tags)
+    files = File.query.order_by(File.uploaded_at.desc()).all()
+    
+    return render_template(
+        'articles/edit.html',
+        article=article,
+        categories=categories,
+        tags=tags,
+        files=files
+    )
+
+
 
 # Alterar status do artigo
 @articles_bp.route('/<int:article_id>/status', methods=['POST'])
@@ -278,12 +296,17 @@ def upload_article_image(article_id):
     if file.filename == '':
         return jsonify({'error': 'Nome de arquivo inválido'}), 400
 
+    from werkzeug.utils import secure_filename
+    import os
+    import uuid
+
     filename = secure_filename(file.filename)
     file_id = str(uuid.uuid4())
     upload_dir = os.path.join(current_app.static_folder, 'uploads', 'articles', str(article_id))
     os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, file_id + "_" + filename)
+    file_path = os.path.join(upload_dir, f"{file_id}_{filename}")
     file.save(file_path)
 
     file_url = url_for('static', filename=f'uploads/articles/{article_id}/{file_id}_{filename}', _external=True)
     return jsonify({'url': file_url})
+
