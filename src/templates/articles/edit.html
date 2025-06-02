@@ -17,11 +17,11 @@
 <div class="card shadow">
     <div class="card-body">
         <form method="POST"
-            action="{{ url_for('articles.edit_article', article_id=article.id) if article else url_for('articles.new_article') }}">
+              action="{{ url_for('articles.edit_article', article_id=article.id) if article else url_for('articles.new_article') }}">
             <div class="mb-3">
                 <label for="title" class="form-label">Título</label>
                 <input type="text" class="form-control" id="title" name="title"
-                    value="{{ article.title if article else '' }}" required>
+                       value="{{ article.title if article else '' }}" required>
             </div>
 
             <div class="row mb-3">
@@ -29,8 +29,7 @@
                     <label for="category_id" class="form-label">Categoria</label>
                     <select class="form-select" id="category_id" name="category_id" required>
                         {% for category in categories %}
-                        <option value="{{ category.id }}" {% if article and article.category_id==category.id
-                            %}selected{% endif %}>
+                        <option value="{{ category.id }}" {% if article and article.category_id == category.id %}selected{% endif %}>
                             {{ category.name }}
                         </option>
                         {% endfor %}
@@ -38,7 +37,15 @@
                 </div>
                 <div class="col-md-6">
                     <label for="tags" class="form-label">Tags</label>
-                    <select class="form-select select2-tags" id="tags" name="tags" multiple>
+                    {# 
+                       Atributo data-allow-new: "true" se usuário for editor ou admin, caso contrário "false". 
+                       Permitirá criar novas tags apenas para editores.
+                    #}
+                    <select class="form-select select2-tags"
+                            id="tags"
+                            name="tags"
+                            multiple
+                            data-allow-new="{% if current_user.is_editor() or current_user.is_admin() %}true{% else %}false{% endif %}">
                         {% for tag in tags %}
                         <option value="{{ tag.name }}" {% if article and tag in article.tags %}selected{% endif %}>
                             {{ tag.name }}
@@ -55,7 +62,7 @@
 
             <div class="d-flex justify-content-between">
                 <a href="{{ url_for('articles.view_article', article_id=article.id) if article else url_for('articles.list_articles') }}"
-                    class="btn btn-secondary">
+                   class="btn btn-secondary">
                     <i class="fas fa-times me-2"></i>Cancelar
                 </a>
                 <button type="submit" class="btn btn-primary">
@@ -75,11 +82,11 @@
         <div class="row mb-3">
             <div class="col-md-12">
                 <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
-                    data-bs-target="#uploadFileModal">
+                        data-bs-target="#uploadFileModal">
                     <i class="fas fa-upload me-2"></i>Fazer Upload de Arquivo
                 </button>
                 <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal"
-                    data-bs-target="#selectFileModal">
+                        data-bs-target="#selectFileModal">
                     <i class="fas fa-link me-2"></i>Associar Arquivo Existente
                 </button>
             </div>
@@ -99,8 +106,7 @@
                     {% for article_file in article.files %}
                     <tr>
                         <td>
-                            <i
-                                class="fas {% if article_file.file.is_pdf %}fa-file-pdf{% elif article_file.file.is_zip %}fa-file-archive{% elif article_file.file.is_image %}fa-file-image{% else %}fa-file{% endif %} me-2"></i>
+                            <i class="fas {% if article_file.file.is_pdf %}fa-file-pdf{% elif article_file.file.is_zip %}fa-file-archive{% elif article_file.file.is_image %}fa-file-image{% else %}fa-file{% endif %} me-2"></i>
                             {{ article_file.file.original_filename }}
                         </td>
                         <td>{{ article_file.file.mime_type }}</td>
@@ -108,11 +114,14 @@
                         <td>
                             <div class="btn-group btn-group-sm">
                                 <a href="{{ url_for('files.download_file', file_id=article_file.file.id) }}"
-                                    class="btn btn-outline-primary" title="Download">
+                                   class="btn btn-outline-primary" title="Download">
                                     <i class="fas fa-download"></i>
                                 </a>
-                                <button type="button" class="btn btn-outline-danger" title="Remover associação"
-                                    onclick="disassociateFile({{ article.id }}, {{ article_file.file.id }}, this)">
+                                {# Botão de desassociar arquivo: chama JS disassociateFile #}
+                                <button type="button"
+                                        class="btn btn-outline-danger"
+                                        title="Remover associação"
+                                        onclick="disassociateFile({{ article.id }}, {{ article_file.file.id }}, this)">
                                     <i class="fas fa-unlink"></i>
                                 </button>
                             </div>
@@ -139,7 +148,7 @@
             </div>
             <div class="modal-body">
                 <form id="file-upload-form" action="{{ url_for('files.upload_file') }}" method="POST"
-                    enctype="multipart/form-data">
+                      enctype="multipart/form-data">
                     <input type="hidden" name="article_id" value="{{ article.id }}">
                     <div class="mb-3">
                         <label for="file-input" class="form-label">Selecione o arquivo</label>
@@ -149,12 +158,12 @@
                     <div class="mb-3">
                         <label for="reference_text" class="form-label">Texto de referência (opcional)</label>
                         <textarea class="form-control" id="reference_text" name="reference_text" rows="3"
-                            placeholder="Descreva como este arquivo é referenciado no artigo..."></textarea>
+                                  placeholder="Descreva como este arquivo é referenciado no artigo..."></textarea>
                     </div>
                     <div class="mb-3">
                         <label for="description" class="form-label">Descrição do arquivo (opcional)</label>
                         <input type="text" class="form-control" id="description" name="description"
-                            placeholder="Breve descrição do conteúdo do arquivo...">
+                               placeholder="Breve descrição do conteúdo do arquivo...">
                     </div>
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary">
@@ -191,15 +200,15 @@
                             {% if file not in article.files|map(attribute='file') %}
                             <tr>
                                 <td>
-                                    <i
-                                        class="fas {% if file.is_pdf %}fa-file-pdf{% elif file.is_zip %}fa-file-archive{% elif file.is_image %}fa-file-image{% else %}fa-file{% endif %} me-2"></i>
+                                    <i class="fas {% if file.is_pdf %}fa-file-pdf{% elif file.is_zip %}fa-file-archive{% elif file.is_image %}fa-file-image{% else %}fa-file{% endif %} me-2"></i>
                                     {{ file.original_filename }}
                                 </td>
                                 <td>{{ file.mime_type }}</td>
                                 <td>{{ (file.file_size / 1024)|round(1) }} KB</td>
                                 <td>
                                     <button type="button" class="btn btn-sm btn-outline-primary associate-file-btn"
-                                        data-file-id="{{ file.id }}" data-file-name="{{ file.original_filename }}">
+                                            data-file-id="{{ file.id }}"
+                                            data-file-name="{{ file.original_filename }}">
                                         <i class="fas fa-link me-1"></i>Associar
                                     </button>
                                 </td>
@@ -235,10 +244,9 @@
                         <p class="form-control-static" id="association-file-name"></p>
                     </div>
                     <div class="mb-3">
-                        <label for="association-reference-text" class="form-label">Texto de referência
-                            (opcional)</label>
+                        <label for="association-reference-text" class="form-label">Texto de referência (opcional)</label>
                         <textarea class="form-control" id="association-reference-text" name="reference_text" rows="3"
-                            placeholder="Descreva como este arquivo é referenciado no artigo..."></textarea>
+                                  placeholder="Descreva como este arquivo é referenciado no artigo..."></textarea>
                     </div>
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary">
@@ -253,6 +261,7 @@
 
 <input type="hidden" id="article-id" value="{{ article.id }}">
 {% endif %}
+
 {% endblock %}
 
 {% block scripts %}
@@ -262,17 +271,14 @@
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-<!-- Summernote -->
+<!-- Summernote CSS / JS -->
 <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-lite.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-lite.min.js"></script>
 
-<!-- Select2 -->
+<!-- Select2 CSS / JS -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-<!-- Seus scripts -->
+<!-- Seu main.js atualizado -->
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-
-
-
 {% endblock %}

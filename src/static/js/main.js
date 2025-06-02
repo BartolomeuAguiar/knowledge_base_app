@@ -1,4 +1,7 @@
+// -------------------------------------------------------------
 // main.js
+// Scripts personalizados para a Base de Conhecimento TIC
+// -------------------------------------------------------------
 
 // -------------------------------------------------------------
 // Inicializa o editor Summernote com configurações e callbacks
@@ -9,8 +12,8 @@ function initSummernote() {
     $("#editor").summernote({
       height: 300,
       lang: "pt-BR",
-      dialogsInBody: true,          // Move o modal do Summernote para dentro do <body>
-      disableDragAndDrop: true,     // Desabilita arrastar/soltar para evitar substituição acidental
+      dialogsInBody: true,       // Move o modal do Summernote para dentro do <body>
+      disableDragAndDrop: true,  // Desabilita arrastar & soltar para evitar sobrescrita acidental
       callbacks: {
         // Quando o usuário fizer upload de imagens, chama uploadSummernoteImage para cada arquivo
         onImageUpload: function (files) {
@@ -24,8 +27,8 @@ function initSummernote() {
 }
 
 // -------------------------------------------------------------
-// Envia a imagem selecionada pelo Summernote para o servidor e
-// insere a URL retornada dentro do editor
+// Envia a imagem selecionada no Summernote para o servidor e
+// insere a URL retornada no editor
 // -------------------------------------------------------------
 function uploadSummernoteImage(file) {
   // Prepara um FormData contendo a chave "file" esperada pelo Flask
@@ -55,28 +58,63 @@ function uploadSummernoteImage(file) {
 }
 
 // -------------------------------------------------------------
-// Inicializa o plugin Select2 para as tags, permitindo criação
-// de novas tags e seleção múltipla
+// Inicializa o plugin Select2 para as tags, lendo o atributo
+// data-allow-new e permitindo criação de novas tags apenas
+// para editores ou admins. Se o usuário digita algo que não
+// existe, mostra “Criar nova TAG: [termo]” na lista.
 // -------------------------------------------------------------
 function initSelect2() {
   if (typeof $.fn.select2 !== "undefined" && document.querySelector(".select2-tags")) {
+    // Pega o atributo data-allow-new do <select>
+    // O jQuery transforma data-allow-new em data("allowNew")
+    const allowNew = $(".select2-tags").data("allowNew") === true;
+
     $(".select2-tags").select2({
-      tags: true,
+      tags: allowNew,             // habilita criação de tags somente se allowNew === true
       tokenSeparators: [","],
-      placeholder: "Selecione ou digite tags..."
+      placeholder: "Selecione ou digite tags...", 
+      createTag: function (params) {
+        // Se não permitir criar novas tags, não retorna nada
+        if (!allowNew) {
+          return null;
+        }
+        // Se não houver termo digitado ou for vazio, não cria
+        const term = params.term.trim();
+        if (term === "") {
+          return null;
+        }
+        // Retorna um objeto customizado para mostrar "Criar nova TAG: [termo]"
+        return {
+          id: term,
+          text: "Criar nova TAG: " + term,
+          newTag: true // sinalizador para sabermos que é uma tag nova
+        };
+      },
+      templateSelection: function (data) {
+        // Quando o usuário seleciona, mostra somente o texto limpo (sem prefixo "Criar nova TAG:")
+        if (data.newTag) {
+          // Retornamos somente a parte após "Criar nova TAG: "
+          return data.id;
+        }
+        return data.text;
+      },
+      templateResult: function (data) {
+        // Exibe no dropdown o texto personalizado (ou normal, se não for nova)
+        return data.text;
+      }
     });
   }
 }
 
 // -------------------------------------------------------------
-// Exibe uma caixa de confirmação genérica antes de ações destrutivas
+// Exibe caixa de confirmação antes de ações destrutivas
 // -------------------------------------------------------------
 function confirmAction(message) {
   return confirm(message || "Tem certeza que deseja realizar esta ação?");
 }
 
 // -------------------------------------------------------------
-// Adiciona preview do arquivo selecionado no formulário de upload
+// Preview de arquivo antes do upload
 // -------------------------------------------------------------
 function initFileUpload() {
   const fileInput = document.getElementById("file-input");
@@ -89,7 +127,7 @@ function initFileUpload() {
 
       if (this.files && this.files.length > 0) {
         const file = this.files[0];
-        const fileSize = (file.size / 1024 / 1024).toFixed(2); // MB
+        const fileSize = (file.size / 1024 / 1024).toFixed(2); // em MB
 
         let icon = "fa-file";
         if (file.type.includes("pdf")) {
@@ -129,7 +167,7 @@ function initFileUpload() {
 }
 
 // -------------------------------------------------------------
-// Abre modal de associação de arquivo existente e envia via AJAX
+// Abre modal para associar arquivo existente e envia via AJAX
 // -------------------------------------------------------------
 function initFileAssociation() {
   const associateButtons = document.querySelectorAll(".associate-file-btn");
@@ -140,12 +178,10 @@ function initFileAssociation() {
       const fileName = this.getAttribute("data-file-name");
       const articleId = document.getElementById("article-id").value;
 
-      // Preenche campos ocultos do formulário de associação
       document.getElementById("association-file-id").value = fileId;
       document.getElementById("association-article-id").value = articleId;
       document.getElementById("association-file-name").textContent = fileName;
 
-      // Abre o modal Bootstrap para associação
       const modal = new bootstrap.Modal(
         document.getElementById("associateFileModal")
       );
@@ -174,7 +210,6 @@ function initFileAssociation() {
         .then((response) => response.json())
         .then((data) => {
           if (data.success) {
-            // Fecha o modal e recarrega a página para atualizar a tabela
             const modal = bootstrap.Modal.getInstance(
               document.getElementById("associateFileModal")
             );
@@ -193,7 +228,7 @@ function initFileAssociation() {
 }
 
 // -------------------------------------------------------------
-// Atualiza a busca de artigos automaticamente ao mudar filtros
+// Submete o formulário de busca de artigos quando filtros mudam
 // -------------------------------------------------------------
 function initArticleSearch() {
   const searchForm = document.getElementById("article-search-form");
@@ -203,7 +238,6 @@ function initArticleSearch() {
   const archivedCheckbox = document.getElementById("include-archived");
 
   if (searchForm) {
-    // Quando categorias, tags ou checkbox mudarem, submete o formulário
     [categorySelect, tagSelect, archivedCheckbox].forEach((element) => {
       if (element) {
         element.addEventListener("change", function () {
@@ -212,7 +246,6 @@ function initArticleSearch() {
       }
     });
 
-    // Debounce para o campo de texto (500ms de intervalo)
     if (searchInput) {
       let debounceTimer;
       searchInput.addEventListener("input", function () {
@@ -226,12 +259,11 @@ function initArticleSearch() {
 }
 
 // -------------------------------------------------------------
-// Função chamada ao clicar em "Desanexar" para remover associação
+// Executa fetch para desassociar arquivo sem recarregar página
 // -------------------------------------------------------------
 function disassociateFile(articleId, fileId, button) {
   if (!confirm("Remover associação deste arquivo?")) return;
 
-  // Caso esteja usando CSRF, capture o token no meta
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content");
 
   fetch("/files/disassociate", {
@@ -247,7 +279,6 @@ function disassociateFile(articleId, fileId, button) {
   })
     .then((response) => {
       if (response.ok) {
-        // Remove a linha correspondente da tabela na interface
         const row = button.closest("tr");
         if (row) row.parentNode.removeChild(row);
       } else {
@@ -260,10 +291,9 @@ function disassociateFile(articleId, fileId, button) {
     });
 }
 
-// ---------------------------------------------------------------------------------
-// Bloqueia o foco de Bootstrap Modal sobre o modal interno do Summernote para evitar
-// "piscar" incessante quando a caixa de seleção de arquivo aparece.
-// ---------------------------------------------------------------------------------
+// -------------------------------------------------------------
+// Previne “piscar” do modal do Summernote ao abrir file‐picker
+// -------------------------------------------------------------
 $(document).on("focusin", function (e) {
   if ($(e.target).closest(".note-modal").length) {
     e.stopImmediatePropagation();
@@ -271,7 +301,7 @@ $(document).on("focusin", function (e) {
 });
 
 // -------------------------------------------------------------
-// Depois que o DOM é carregado, inicializa todas as funções
+// Quando o DOM estiver pronto, inicializa todas as funções
 // -------------------------------------------------------------
 document.addEventListener("DOMContentLoaded", function () {
   initSummernote();
