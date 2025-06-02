@@ -111,17 +111,10 @@
                                     class="btn btn-outline-primary" title="Download">
                                     <i class="fas fa-download"></i>
                                 </a>
-                                <button type="button" class="btn btn-outline-danger"
-                                    onclick="if(confirmAction('Remover associação deste arquivo?')) document.getElementById('disassociate-form-{{ article_file.file.id }}').submit();"
-                                    title="Remover associação">
+                                <button type="button" class="btn btn-outline-danger" title="Remover associação"
+                                    onclick="disassociateFile({{ article.id }}, {{ article_file.file.id }}, this)">
                                     <i class="fas fa-unlink"></i>
                                 </button>
-                                <form id="disassociate-form-{{ article_file.file.id }}"
-                                    action="{{ url_for('files.disassociate_file') }}" method="POST"
-                                    style="display: none;">
-                                    <input type="hidden" name="article_id" value="{{ article.id }}">
-                                    <input type="hidden" name="file_id" value="{{ article_file.file.id }}">
-                                </form>
                             </div>
                         </td>
                     </tr>
