@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2><i class="fas fa-clipboard-list me-2"></i>Artigos Pendentes</h2>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header bg-light">
+        <ul class="nav nav-tabs card-header-tabs" id="articleStatusTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="draft-tab" data-bs-toggle="tab" data-bs-target="#draft" type="button" role="tab" aria-controls="draft" aria-selected="true">
+                    <i class="fas fa-pencil-alt me-1"></i>Rascunhos
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="review-tab" data-bs-toggle="tab" data-bs-target="#review" type="button" role="tab" aria-controls="review" aria-selected="false">
+                    <i class="fas fa-search me-1"></i>Em Análise
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="approved-tab" data-bs-toggle="tab" data-bs-target="#approved" type="button" role="tab" aria-controls="approved" aria-selected="false">
+                    <i class="fas fa-check-circle me-1"></i>Homologados
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="archived-tab" data-bs-toggle="tab" data-bs-target="#archived" type="button" role="tab" aria-controls="archived" aria-selected="false">
+                    <i class="fas fa-archive me-1"></i>Arquivados
+                </button>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content" id="articleStatusTabsContent">
+            <!-- Rascunhos -->
+            <div class="tab-pane fade show active" id="draft" role="tabpanel" aria-labelledby="draft-tab">
+                {% if draft_articles %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Categoria</th>
+                                <th>Autor</th>
+                                <th>Data de Criação</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for article in draft_articles %}
+                            <tr>
+                                <td>{{ article.title }}</td>
+                                <td>{{ article.category.name }}</td>
+                                <td>{{ article.creator.username }}</td>
+                                <td>{{ article.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('articles.view_article', article_id=article.id) }}" class="btn btn-outline-primary" title="Visualizar">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-info" onclick="changeArticleStatus({{ article.id }}, 'em_analise')" title="Enviar para análise">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>Nenhum artigo em rascunho encontrado.
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Em Análise -->
+            <div class="tab-pane fade" id="review" role="tabpanel" aria-labelledby="review-tab">
+                {% if review_articles %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Categoria</th>
+                                <th>Autor</th>
+                                <th>Data de Envio</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for article in review_articles %}
+                            <tr>
+                                <td>{{ article.title }}</td>
+                                <td>{{ article.category.name }}</td>
+                                <td>{{ article.creator.username }}</td>
+                                <td>{{ article.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('articles.view_article', article_id=article.id) }}" class="btn btn-outline-primary" title="Visualizar">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-success" onclick="changeArticleStatus({{ article.id }}, 'homologado')" title="Homologar">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" onclick="changeArticleStatus({{ article.id }}, 'rascunho')" title="Retornar para rascunho">
+                                            <i class="fas fa-arrow-left"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>Nenhum artigo em análise encontrado.
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Homologados -->
+            <div class="tab-pane fade" id="approved" role="tabpanel" aria-labelledby="approved-tab">
+                {% if approved_articles %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Categoria</th>
+                                <th>Autor</th>
+                                <th>Data de Homologação</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for article in approved_articles %}
+                            <tr>
+                                <td>{{ article.title }}</td>
+                                <td>{{ article.category.name }}</td>
+                                <td>{{ article.creator.username }}</td>
+                                <td>{{ article.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('articles.view_article', article_id=article.id) }}" class="btn btn-outline-primary" title="Visualizar">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-warning" onclick="changeArticleStatus({{ article.id }}, 'em_analise')" title="Retornar para análise">
+                                            <i class="fas fa-arrow-left"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger" onclick="changeArticleStatus({{ article.id }}, 'arquivado')" title="Arquivar">
+                                            <i class="fas fa-archive"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>Nenhum artigo homologado encontrado.
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Arquivados -->
+            <div class="tab-pane fade" id="archived" role="tabpanel" aria-labelledby="archived-tab">
+                {% if archived_articles %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Categoria</th>
+                                <th>Autor</th>
+                                <th>Data de Arquivamento</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for article in archived_articles %}
+                            <tr>
+                                <td>{{ article.title }}</td>
+                                <td>{{ article.category.name }}</td>
+                                <td>{{ article.creator.username }}</td>
+                                <td>{{ article.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('articles.view_article', article_id=article.id) }}" class="btn btn-outline-primary" title="Visualizar">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-success" onclick="changeArticleStatus({{ article.id }}, 'homologado')" title="Restaurar">
+                                            <i class="fas fa-undo"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>Nenhum artigo arquivado encontrado.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Formulário oculto para alteração de status -->
+<form id="change-status-form" action="{{ url_for('admin.change_article_status') }}" method="POST" style="display: none;">
+    <input type="hidden" id="article-id" name="article_id">
+    <input type="hidden" id="new-status" name="status">
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function changeArticleStatus(articleId, newStatus) {
+    if (confirmAction(`Tem certeza que deseja alterar o status deste artigo para "${getStatusName(newStatus)}"?`)) {
+        const form = document.getElementById('change-status-form');
+        document.getElementById('article-id').value = articleId;
+        document.getElementById('new-status').value = newStatus;
+        form.submit();
+    }
+}
+
+function getStatusName(status) {
+    switch(status) {
+        case 'rascunho': return 'Rascunho';
+        case 'em_analise': return 'Em Análise';
+        case 'homologado': return 'Homologado';
+        case 'arquivado': return 'Arquivado';
+        default: return status;
+    }
+}
+
+function confirmAction(message) {
+    return confirm(message || 'Tem certeza que deseja realizar esta ação?');
+}
+</script>
+{% endblock %}

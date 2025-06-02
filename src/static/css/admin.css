@@ -1,0 +1,139 @@
+/* Estilos personalizados para o dashboard administrativo */
+
+/* Cores de status */
+.status-rascunho {
+    background-color: #6c757d;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.status-em_analise {
+    background-color: #0dcaf0;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.status-homologado {
+    background-color: #198754;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.status-arquivado {
+    background-color: #dc3545;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+/* Cards do dashboard */
+.dashboard-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-card .card-body {
+    padding: 1.5rem;
+}
+
+.dashboard-card .card-title {
+    font-weight: 600;
+    margin-top: 0.5rem;
+}
+
+.dashboard-card .display-6 {
+    font-weight: 700;
+    color: #0d6efd;
+}
+
+/* Ícones do dashboard */
+.dashboard-icon {
+    font-size: 2.5rem;
+    color: #0d6efd;
+    margin-bottom: 1rem;
+}
+
+/* Tabelas administrativas */
+.admin-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.admin-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.admin-table tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+/* Botões de ação */
+.btn-group-action .btn {
+    margin-right: 0.25rem;
+}
+
+.btn-group-action .btn:last-child {
+    margin-right: 0;
+}
+
+/* Modais administrativos */
+.admin-modal .modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.admin-modal .modal-title {
+    font-weight: 600;
+}
+
+/* Navegação por abas */
+.nav-tabs .nav-link {
+    font-weight: 500;
+    color: #495057;
+}
+
+.nav-tabs .nav-link.active {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+/* Badges personalizados */
+.badge-role {
+    font-size: 0.85rem;
+    padding: 0.35em 0.65em;
+}
+
+.badge-role-admin {
+    background-color: #dc3545;
+}
+
+.badge-role-editor {
+    background-color: #fd7e14;
+}
+
+.badge-role-user {
+    background-color: #0dcaf0;
+}
+
+/* Responsividade para telas pequenas */
+@media (max-width: 768px) {
+    .dashboard-card {
+        margin-bottom: 1rem;
+    }
+    
+    .btn-responsive {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+}

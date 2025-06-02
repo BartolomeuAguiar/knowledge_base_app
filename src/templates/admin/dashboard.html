@@ -1,0 +1,161 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block admin_title %}Dashboard Administrativo{% endblock %}
+
+{% block admin_content %}
+<div class="row mb-4">
+    <!-- Estatísticas -->
+    <div class="col-md-3">
+        <div class="card shadow text-center h-100 dashboard-card">
+            <div class="card-body">
+                <i class="fas fa-users fa-3x text-primary mb-3 dashboard-icon"></i>
+                <h5 class="card-title">Usuários</h5>
+                <p class="card-text display-6">{{ total_users }}</p>
+                <a href="{{ url_for('admin.list_users') }}" class="btn btn-sm btn-outline-primary">Gerenciar</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow text-center h-100 dashboard-card">
+            <div class="card-body">
+                <i class="fas fa-file-alt fa-3x text-primary mb-3 dashboard-icon"></i>
+                <h5 class="card-title">Artigos</h5>
+                <p class="card-text display-6">{{ total_articles }}</p>
+                <a href="{{ url_for('articles.list_articles') }}" class="btn btn-sm btn-outline-primary">Visualizar</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow text-center h-100 dashboard-card">
+            <div class="card-body">
+                <i class="fas fa-folder fa-3x text-primary mb-3 dashboard-icon"></i>
+                <h5 class="card-title">Categorias</h5>
+                <p class="card-text display-6">{{ total_categories }}</p>
+                <a href="{{ url_for('admin.list_categories') }}" class="btn btn-sm btn-outline-primary">Gerenciar</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow text-center h-100 dashboard-card">
+            <div class="card-body">
+                <i class="fas fa-tags fa-3x text-primary mb-3 dashboard-icon"></i>
+                <h5 class="card-title">Tags</h5>
+                <p class="card-text display-6">{{ total_tags }}</p>
+                <a href="{{ url_for('admin.list_tags') }}" class="btn btn-sm btn-outline-primary">Gerenciar</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Artigos por status -->
+    <div class="col-md-6">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Artigos por Status</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart" width="400" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Artigos recentes -->
+    <div class="col-md-6">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Artigos Recentes</h5>
+                <a href="{{ url_for('admin.list_pending_articles') }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-list me-1"></i>Ver Todos Pendentes
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_articles %}
+                <div class="list-group">
+                    {% for article in recent_articles %}
+                    <a href="{{ url_for('articles.view_article', article_id=article.id) }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ article.title }}</h6>
+                            <span class="status-{{ article.status }}">
+                                {% if article.status == 'rascunho' %}
+                                    <i class="fas fa-pencil-alt me-1"></i>Rascunho
+                                {% elif article.status == 'em_analise' %}
+                                    <i class="fas fa-search me-1"></i>Em Análise
+                                {% elif article.status == 'homologado' %}
+                                    <i class="fas fa-check-circle me-1"></i>Homologado
+                                {% elif article.status == 'arquivado' %}
+                                    <i class="fas fa-archive me-1"></i>Arquivado
+                                {% endif %}
+                            </span>
+                        </div>
+                        <p class="mb-1 small text-muted">
+                            <i class="fas fa-user me-1"></i>{{ article.creator.username }} | 
+                            <i class="fas fa-calendar me-1"></i>{{ article.created_at.strftime('%d/%m/%Y') }}
+                        </p>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">Nenhum artigo encontrado.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Dados para o gráfico de status
+    const statusData = {{ status_data|safe }};
+    const labels = [];
+    const data = [];
+    const colors = {
+        'rascunho': '#6c757d',
+        'em_analise': '#0dcaf0',
+        'homologado': '#198754',
+        'arquivado': '#dc3545'
+    };
+    const backgroundColors = [];
+    
+    for (const status in statusData) {
+        let statusName = status;
+        switch(status) {
+            case 'rascunho': statusName = 'Rascunho'; break;
+            case 'em_analise': statusName = 'Em Análise'; break;
+            case 'homologado': statusName = 'Homologado'; break;
+            case 'arquivado': statusName = 'Arquivado'; break;
+        }
+        
+        labels.push(statusName);
+        data.push(statusData[status]);
+        backgroundColors.push(colors[status] || '#0d6efd');
+    }
+    
+    // Criar gráfico
+    const ctx = document.getElementById('statusChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: backgroundColors,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

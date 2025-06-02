@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2><i class="fas fa-tags me-2"></i>Gerenciar Tags</h2>
+    </div>
+    <div class="col-md-4 text-md-end">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newTagModal">
+            <i class="fas fa-plus me-2"></i>Nova Tag
+        </button>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        {% if tags %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Artigos</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tag in tags %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-primary">{{ tag.name }}</span>
+                        </td>
+                        <td>{{ tag.articles.count() }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-primary edit-tag-btn" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#editTagModal"
+                                        data-tag-id="{{ tag.id }}"
+                                        data-name="{{ tag.name }}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" onclick="if(confirmAction('Tem certeza que deseja excluir esta tag?')) document.getElementById('delete-tag-form-{{ tag.id }}').submit();">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                <form id="delete-tag-form-{{ tag.id }}" action="{{ url_for('admin.delete_tag', tag_id=tag.id) }}" method="POST" style="display: none;"></form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>Nenhuma tag encontrada.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal para Nova Tag -->
+<div class="modal fade" id="newTagModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-tag me-2"></i>Nova Tag</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <form id="new-tag-form" action="{{ url_for('admin.create_tag') }}" method="POST">
+                    <div class="mb-3">
+                        <label for="new-tag-name" class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="new-tag-name" name="name" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="new-tag-form" class="btn btn-primary">Criar Tag</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Editar Tag -->
+<div class="modal fade" id="editTagModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Editar Tag</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-tag-form" action="{{ url_for('admin.update_tag') }}" method="POST">
+                    <input type="hidden" id="edit-tag-id" name="tag_id">
+                    <div class="mb-3">
+                        <label for="edit-tag-name" class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="edit-tag-name" name="name" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="edit-tag-form" class="btn btn-primary">Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Configurar modal de edição de tag
+    const editTagModal = document.getElementById('editTagModal');
+    if (editTagModal) {
+        editTagModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const tagId = button.getAttribute('data-tag-id');
+            const name = button.getAttribute('data-name');
+            
+            const modal = this;
+            modal.querySelector('#edit-tag-id').value = tagId;
+            modal.querySelector('#edit-tag-name').value = name;
+        });
+    }
+});
+
+function confirmAction(message) {
+    return confirm(message || 'Tem certeza que deseja realizar esta ação?');
+}
+</script>
+{% endblock %}

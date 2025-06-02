@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2><i class="fas fa-folder me-2"></i>Gerenciar Categorias</h2>
+    </div>
+    <div class="col-md-4 text-md-end">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newCategoryModal">
+            <i class="fas fa-plus me-2"></i>Nova Categoria
+        </button>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        {% if categories %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Descrição</th>
+                        <th>Categoria Pai</th>
+                        <th>Artigos</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for category in categories %}
+                    <tr>
+                        <td>{{ category.name }}</td>
+                        <td>{{ category.description or '-' }}</td>
+                        <td>{{ category.parent.name if category.parent else '-' }}</td>
+                        <td>{{ category.articles|length }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-primary edit-category-btn" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#editCategoryModal"
+                                        data-category-id="{{ category.id }}"
+                                        data-name="{{ category.name }}"
+                                        data-description="{{ category.description or '' }}"
+                                        data-parent-id="{{ category.parent_id or '' }}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                {% if category.name != 'Geral' %}
+                                <button type="button" class="btn btn-outline-danger" onclick="if(confirmAction('Tem certeza que deseja excluir esta categoria?')) document.getElementById('delete-category-form-{{ category.id }}').submit();">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                <form id="delete-category-form-{{ category.id }}" action="{{ url_for('admin.delete_category', category_id=category.id) }}" method="POST" style="display: none;"></form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>Nenhuma categoria encontrada.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal para Nova Categoria -->
+<div class="modal fade" id="newCategoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-folder-plus me-2"></i>Nova Categoria</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <form id="new-category-form" action="{{ url_for('admin.create_category') }}" method="POST">
+                    <div class="mb-3">
+                        <label for="new-category-name" class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="new-category-name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-category-description" class="form-label">Descrição</label>
+                        <textarea class="form-control" id="new-category-description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-category-parent" class="form-label">Categoria Pai (opcional)</label>
+                        <select class="form-select" id="new-category-parent" name="parent_id">
+                            <option value="">Nenhuma (categoria raiz)</option>
+                            {% for category in categories %}
+                            <option value="{{ category.id }}">{{ category.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="new-category-form" class="btn btn-primary">Criar Categoria</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Editar Categoria -->
+<div class="modal fade" id="editCategoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Editar Categoria</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-category-form" action="{{ url_for('admin.update_category') }}" method="POST">
+                    <input type="hidden" id="edit-category-id" name="category_id">
+                    <div class="mb-3">
+                        <label for="edit-category-name" class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="edit-category-name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-category-description" class="form-label">Descrição</label>
+                        <textarea class="form-control" id="edit-category-description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-category-parent" class="form-label">Categoria Pai (opcional)</label>
+                        <select class="form-select" id="edit-category-parent" name="parent_id">
+                            <option value="">Nenhuma (categoria raiz)</option>
+                            {% for category in categories %}
+                            <option value="{{ category.id }}">{{ category.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="edit-category-form" class="btn btn-primary">Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Configurar modal de edição de categoria
+    const editCategoryModal = document.getElementById('editCategoryModal');
+    if (editCategoryModal) {
+        editCategoryModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const categoryId = button.getAttribute('data-category-id');
+            const name = button.getAttribute('data-name');
+            const description = button.getAttribute('data-description');
+            const parentId = button.getAttribute('data-parent-id');
+            
+            const modal = this;
+            modal.querySelector('#edit-category-id').value = categoryId;
+            modal.querySelector('#edit-category-name').value = name;
+            modal.querySelector('#edit-category-description').value = description;
+            
+            const parentSelect = modal.querySelector('#edit-category-parent');
+            if (parentSelect) {
+                // Remover a própria categoria das opções de categoria pai
+                Array.from(parentSelect.options).forEach(option => {
+                    if (option.value === categoryId) {
+                        option.disabled = true;
+                    } else {
+                        option.disabled = false;
+                    }
+                });
+                
+                parentSelect.value = parentId;
+            }
+        });
+    }
+});
+
+function confirmAction(message) {
+    return confirm(message || 'Tem certeza que deseja realizar esta ação?');
+}
+</script>
+{% endblock %}

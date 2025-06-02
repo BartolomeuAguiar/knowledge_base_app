@@ -1,0 +1,183 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block admin_title %}Gerenciar Usuários{% endblock %}
+
+{% block admin_content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2><i class="fas fa-users me-2"></i>Gerenciar Usuários</h2>
+    </div>
+    <div class="col-md-4 text-md-end">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newUserModal">
+            <i class="fas fa-user-plus me-2"></i>Novo Usuário
+        </button>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        {% if users %}
+        <div class="table-responsive">
+            <table class="table table-hover admin-table">
+                <thead>
+                    <tr>
+                        <th>Nome de Usuário</th>
+                        <th>Email</th>
+                        <th>Nome Completo</th>
+                        <th>Função</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>{{ user.full_name or '-' }}</td>
+                        <td>
+                            <span class="badge {% if user.role == 'admin' %}bg-danger{% elif user.role == 'editor' %}bg-warning{% else %}bg-info{% endif %} badge-role badge-role-{{ user.role }}">
+                                {{ user.role }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge {% if user.active %}bg-success{% else %}bg-secondary{% endif %}">
+                                {% if user.active %}Ativo{% else %}Inativo{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm btn-group-action">
+                                <button type="button" class="btn btn-outline-primary edit-user-btn" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#editUserModal"
+                                        data-user-id="{{ user.id }}"
+                                        data-username="{{ user.username }}"
+                                        data-email="{{ user.email }}"
+                                        data-fullname="{{ user.full_name or '' }}"
+                                        data-role="{{ user.role }}"
+                                        data-active="{{ user.active|int }}"
+                                        title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                {% if user.id != current_user.id %}
+                                <button type="button" class="btn btn-outline-danger" onclick="if(confirmAction('Tem certeza que deseja excluir este usuário?')) document.getElementById('delete-user-form-{{ user.id }}').submit();" title="Excluir">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                <form id="delete-user-form-{{ user.id }}" action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST" style="display: none;"></form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>Nenhum usuário encontrado.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal para Novo Usuário -->
+<div class="modal fade admin-modal" id="newUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Novo Usuário</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <form id="new-user-form" action="{{ url_for('admin.create_user') }}" method="POST">
+                    <div class="mb-3">
+                        <label for="new-username" class="form-label">Nome de usuário</label>
+                        <input type="text" class="form-control" id="new-username" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="new-email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-full-name" class="form-label">Nome completo</label>
+                        <input type="text" class="form-control" id="new-full-name" name="full_name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-password" class="form-label">Senha</label>
+                        <input type="password" class="form-control" id="new-password" name="password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-confirm-password" class="form-label">Confirmar senha</label>
+                        <input type="password" class="form-control" id="new-confirm-password" name="confirm_password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-role" class="form-label">Função</label>
+                        <select class="form-select" id="new-role" name="role" required>
+                            <option value="user">Usuário</option>
+                            <option value="editor">Editor</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="new-active" name="active" checked>
+                        <label class="form-check-label" for="new-active">Usuário ativo</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="new-user-form" class="btn btn-primary">Criar Usuário</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Editar Usuário -->
+<div class="modal fade admin-modal" id="editUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-user-edit me-2"></i>Editar Usuário</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-user-form" action="{{ url_for('admin.update_user') }}" method="POST">
+                    <input type="hidden" id="edit-user-id" name="user_id">
+                    <div class="mb-3">
+                        <label for="edit-username" class="form-label">Nome de usuário</label>
+                        <input type="text" class="form-control" id="edit-username" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="edit-email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-full-name" class="form-label">Nome completo</label>
+                        <input type="text" class="form-control" id="edit-full-name" name="full_name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-role" class="form-label">Função</label>
+                        <select class="form-select" id="edit-role" name="role" required>
+                            <option value="user">Usuário</option>
+                            <option value="editor">Editor</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="edit-active" name="active">
+                        <label class="form-check-label" for="edit-active">Usuário ativo</label>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="reset-password" name="reset_password">
+                        <label class="form-check-label" for="reset-password">Resetar senha para padrão (password123)</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="edit-user-form" class="btn btn-primary">Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

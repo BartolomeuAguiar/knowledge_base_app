@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<!-- CSS personalizado para o dashboard administrativo -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar de navegação administrativa -->
+        <div class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+            <div class="position-sticky pt-3">
+                <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                    <span>Administração</span>
+                </h6>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == url_for('admin.dashboard') %}active{% endif %}" href="{{ url_for('admin.dashboard') }}">
+                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == url_for('admin.list_users') %}active{% endif %}" href="{{ url_for('admin.list_users') }}">
+                            <i class="fas fa-users me-2"></i>Usuários
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == url_for('admin.list_categories') %}active{% endif %}" href="{{ url_for('admin.list_categories') }}">
+                            <i class="fas fa-folder me-2"></i>Categorias
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == url_for('admin.list_tags') %}active{% endif %}" href="{{ url_for('admin.list_tags') }}">
+                            <i class="fas fa-tags me-2"></i>Tags
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == url_for('admin.list_pending_articles') %}active{% endif %}" href="{{ url_for('admin.list_pending_articles') }}">
+                            <i class="fas fa-clipboard-list me-2"></i>Artigos Pendentes
+                        </a>
+                    </li>
+                </ul>
+                
+                <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                    <span>Sistema</span>
+                </h6>
+                <ul class="nav flex-column mb-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">
+                            <i class="fas fa-home me-2"></i>Voltar ao Site
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Conteúdo principal -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">{% block admin_title %}Dashboard Administrativo{% endblock %}</h1>
+            </div>
+            
+            {% block admin_content %}{% endblock %}
+        </main>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Scripts personalizados para o dashboard administrativo -->
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}
