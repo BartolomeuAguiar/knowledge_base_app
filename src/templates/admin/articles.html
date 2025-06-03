@@ -222,29 +222,6 @@
 </form>
 {% endblock %}
 
-{% block scripts %}
-<script>
-function changeArticleStatus(articleId, newStatus) {
-    if (confirmAction(`Tem certeza que deseja alterar o status deste artigo para "${getStatusName(newStatus)}"?`)) {
-        const form = document.getElementById('change-status-form');
-        document.getElementById('article-id').value = articleId;
-        document.getElementById('new-status').value = newStatus;
-        form.submit();
-    }
-}
-
-function getStatusName(status) {
-    switch(status) {
-        case 'rascunho': return 'Rascunho';
-        case 'em_analise': return 'Em Análise';
-        case 'homologado': return 'Homologado';
-        case 'arquivado': return 'Arquivado';
-        default: return status;
-    }
-}
-
-function confirmAction(message) {
-    return confirm(message || 'Tem certeza que deseja realizar esta ação?');
-}
-</script>
+{% block scripts_extras %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 {% endblock %}
