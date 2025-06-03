@@ -9,3 +9,4 @@ psycopg2
 flask-migrate
 python-dotenv
 psycopg2-binary
+xhtml2pdf

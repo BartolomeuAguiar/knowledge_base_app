@@ -1,32 +1,53 @@
+{# src/templates/articles/view.html #}
 {% extends 'base.html' %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col-md-8">
-        <h2><i class="fas fa-eye me-2"></i>{{ article.title }}</h2>
+        <h2>
+            <i class="fas fa-eye me-2"></i>{{ article.title }}
+        </h2>
     </div>
     <div class="col-md-4 text-md-end">
         {% if article.is_editable_by(current_user) %}
         <div class="btn-group">
-            <a href="{{ url_for('articles.edit_article', article_id=article.id) }}" class="btn btn-primary">
+            {# Botão Exportar para PDF (visível para qualquer usuário autenticado) #}
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('articles.export_article_pdf', article_id=article.id) }}"
+               class="btn btn-danger me-1">
+                <i class="fas fa-file-pdf me-1"></i>Exportar PDF
+            </a>
+            {% endif %}
+
+            {# Botão Editar #}
+            <a href="{{ url_for('articles.edit_article', article_id=article.id) }}" class="btn btn-primary me-1">
                 <i class="fas fa-edit me-2"></i>Editar
             </a>
-            <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+
+            {# Dropdown de opções #}
+            <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split"
+                data-bs-toggle="dropdown" aria-expanded="false">
                 <span class="visually-hidden">Opções</span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
                 <li>
-                    <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#changeStatusModal">
+                    <button type="button" class="dropdown-item" data-bs-toggle="modal"
+                        data-bs-target="#changeStatusModal">
                         <i class="fas fa-exchange-alt me-2"></i>Alterar Status
                     </button>
                 </li>
                 {% if current_user.is_admin() %}
-                <li><hr class="dropdown-divider"></li>
                 <li>
-                    <button type="button" class="dropdown-item text-danger" onclick="if(confirmAction('Tem certeza que deseja excluir este artigo? Esta ação não pode ser desfeita.')) document.getElementById('delete-article-form').submit();">
+                    <hr class="dropdown-divider">
+                </li>
+                <li>
+                    <button type="button" class="dropdown-item text-danger"
+                        onclick="if(confirmAction('Tem certeza que deseja excluir este artigo? Esta ação não pode ser desfeita.')) document.getElementById('delete-article-form').submit();">
                         <i class="fas fa-trash-alt me-2"></i>Excluir
                     </button>
-                    <form id="delete-article-form" action="{{ url_for('articles.delete_article', article_id=article.id) }}" method="POST" style="display: none;"></form>
+                    <form id="delete-article-form"
+                        action="{{ url_for('articles.delete_article', article_id=article.id) }}" method="POST"
+                        style="display: none;"></form>
                 </li>
                 {% endif %}
             </ul>
@@ -42,13 +63,13 @@
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <span class="status-badge status-{{ article.status }}">
                     {% if article.status == 'rascunho' %}
-                        <i class="fas fa-pencil-alt me-1"></i>Rascunho
+                    <i class="fas fa-pencil-alt me-1"></i>Rascunho
                     {% elif article.status == 'em_analise' %}
-                        <i class="fas fa-search me-1"></i>Em Análise
+                    <i class="fas fa-search me-1"></i>Em Análise
                     {% elif article.status == 'homologado' %}
-                        <i class="fas fa-check-circle me-1"></i>Homologado
+                    <i class="fas fa-check-circle me-1"></i>Homologado
                     {% elif article.status == 'arquivado' %}
-                        <i class="fas fa-archive me-1"></i>Arquivado
+                    <i class="fas fa-archive me-1"></i>Arquivado
                     {% endif %}
                 </span>
                 <span class="badge bg-primary">{{ article.category.name }}</span>
@@ -72,20 +93,21 @@
                         Atualizado por: {{ article.updater.username }}
                     </div>
                 </div>
-                
+
                 <div class="mb-3">
                     {% for tag in article.tags %}
                     <span class="badge bg-secondary me-1">{{ tag.name }}</span>
                     {% endfor %}
                 </div>
-                
+
                 <div class="article-content">
                     {{ article.content|safe }}
                 </div>
             </div>
+            
         </div>
     </div>
-    
+
     <div class="col-md-4">
         <!-- Arquivos associados -->
         <div class="card shadow mb-4">
@@ -99,7 +121,8 @@
                     <div class="list-group-item list-group-item-action">
                         <div class="d-flex w-100 justify-content-between">
                             <h6 class="mb-1">
-                                <i class="fas {% if article_file.file.is_pdf %}fa-file-pdf{% elif article_file.file.is_zip %}fa-file-archive{% elif article_file.file.is_image %}fa-file-image{% else %}fa-file{% endif %} me-2"></i>
+                                <i
+                                    class="fas {% if article_file.file.is_pdf %}fa-file-pdf{% elif article_file.file.is_zip %}fa-file-archive{% elif article_file.file.is_image %}fa-file-image{% else %}fa-file{% endif %} me-2"></i>
                                 {{ article_file.file.original_filename }}
                             </h6>
                             <small>{{ (article_file.file.file_size / 1024)|round(1) }} KB</small>
@@ -108,7 +131,8 @@
                         <p class="mb-1 small">{{ article_file.reference_text }}</p>
                         {% endif %}
                         <div class="mt-2">
-                            <a href="{{ url_for('files.download_file', file_id=article_file.file.id) }}" class="btn btn-sm btn-outline-primary">
+                            <a href="{{ url_for('files.download_file', file_id=article_file.file.id) }}"
+                                class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-download me-1"></i>Download
                             </a>
                         </div>
@@ -120,7 +144,7 @@
                 {% endif %}
             </div>
         </div>
-        
+
         <!-- Histórico de alterações -->
         <div class="card shadow">
             <div class="card-header bg-light">
@@ -146,9 +170,11 @@
                                 <span class="text-muted">por {{ history.user.username }}</span>
                                 {% if history.action == 'status_change' %}
                                 <div class="mt-1">
-                                    <span class="status-badge status-{{ history.old_status }}">{{ history.old_status }}</span>
+                                    <span class="status-badge status-{{ history.old_status }}">{{ history.old_status
+                                        }}</span>
                                     <i class="fas fa-arrow-right mx-2"></i>
-                                    <span class="status-badge status-{{ history.new_status }}">{{ history.new_status }}</span>
+                                    <span class="status-badge status-{{ history.new_status }}">{{ history.new_status
+                                        }}</span>
                                 </div>
                                 {% endif %}
                             </div>
@@ -177,10 +203,14 @@
                     <div class="mb-3">
                         <label for="status" class="form-label">Novo Status</label>
                         <select class="form-select" id="status" name="status" required>
-                            <option value="rascunho" {% if article.status == 'rascunho' %}selected{% endif %}>Rascunho</option>
-                            <option value="em_analise" {% if article.status == 'em_analise' %}selected{% endif %}>Em Análise</option>
-                            <option value="homologado" {% if article.status == 'homologado' %}selected{% endif %}>Homologado</option>
-                            <option value="arquivado" {% if article.status == 'arquivado' %}selected{% endif %}>Arquivado</option>
+                            <option value="rascunho" {% if article.status=='rascunho' %}selected{% endif %}>Rascunho
+                            </option>
+                            <option value="em_analise" {% if article.status=='em_analise' %}selected{% endif %}>Em
+                                Análise</option>
+                            <option value="homologado" {% if article.status=='homologado' %}selected{% endif %}>
+                                Homologado</option>
+                            <option value="arquivado" {% if article.status=='arquivado' %}selected{% endif %}>Arquivado
+                            </option>
                         </select>
                     </div>
                     <div class="d-grid">
@@ -198,7 +228,7 @@
 {% block scripts %}
 <script>
     // Adicionar estilos CSS para a timeline
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const style = document.createElement('style');
         style.textContent = `
             .timeline {
