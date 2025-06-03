@@ -21,6 +21,7 @@
                 <thead>
                     <tr>
                         <th>Arquivo</th>
+                        <th>Descrição</th>
                         <th>Tipo</th>
                         <th>Tamanho</th>
                         <th>Enviado por</th>
@@ -35,6 +36,7 @@
                             <i class="fas {% if file.is_pdf %}fa-file-pdf{% elif file.is_zip %}fa-file-archive{% elif file.is_image %}fa-file-image{% else %}fa-file{% endif %} me-2"></i>
                             {{ file.original_filename }}
                         </td>
+                        <td>{{ file.description }}</td>
                         <td>{{ file.mime_type }}</td>
                         <td>{{ (file.file_size / 1024)|round(1) }} KB</td>
                         <td>{{ file.uploader.username }}</td>
