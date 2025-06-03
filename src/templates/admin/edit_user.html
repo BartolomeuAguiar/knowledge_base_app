@@ -1,0 +1,115 @@
+{# src/templates/admin/edit_user.html #}
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Editar Usuário</h2>
+    {# Exibe possíveis mensagens de flash #}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="post" action="{{ url_for('admin.update_user', user_id=user.id) }}">
+        {{ csrf_token }}
+
+        <!-- Nome de Usuário -->
+        <div class="mb-3">
+            <label for="username" class="form-label">
+                Nome de Usuário <span class="text-danger">*</span>
+            </label>
+            <input
+                type="text"
+                class="form-control"
+                id="username"
+                name="username"
+                value="{{ user.username }}"
+                required
+                pattern="^\S+$"
+                title="O nome de usuário não pode conter espaços."
+            >
+            <div class="form-text">
+                Não pode conter espaços; deve ser único.
+            </div>
+        </div>
+
+        <!-- E-mail -->
+        <div class="mb-3">
+            <label for="email" class="form-label">
+                E-mail <span class="text-danger">*</span>
+            </label>
+            <input
+                type="email"
+                class="form-control"
+                id="email"
+                name="email"
+                value="{{ user.email }}"
+                required
+            >
+        </div>
+
+        <!-- Nome Completo -->
+        <div class="mb-3">
+            <label for="full_name" class="form-label">Nome Completo</label>
+            <input
+                type="text"
+                class="form-control"
+                id="full_name"
+                name="full_name"
+                value="{{ user.full_name or '' }}"
+            >
+        </div>
+
+        <!-- Função / Papel -->
+        <div class="mb-3">
+            <label for="role" class="form-label">Função</label>
+            <input
+                type="text"
+                class="form-control"
+                id="role"
+                name="role"
+                value="{{ user.role or '' }}"
+            >
+        </div>
+
+        <!-- Ativo/Inativo -->
+        <div class="mb-3 form-check">
+            <input
+                type="checkbox"
+                class="form-check-input"
+                id="active"
+                name="active"
+                {% if user.active %}checked{% endif %}
+            >
+            <label class="form-check-label" for="active">Ativo</label>
+        </div>
+
+        <!-- Senha (vazia por padrão) -->
+        <div class="mb-3">
+            <label for="password" class="form-label">
+                Senha
+                <span class="form-text text-muted">
+                    (deixe em branco para manter a senha atual)
+                </span>
+            </label>
+            <input
+                type="password"
+                class="form-control"
+                id="password"
+                name="password"
+                value=""
+            >
+        </div>
+
+        <!-- Botões -->
+        <button type="submit" class="btn btn-primary">Salvar</button>
+        <a href="{{ url_for('admin.list_users') }}" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

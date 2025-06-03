@@ -51,97 +51,128 @@ def list_users():
     return render_template('admin/users.html', users=users)
 
 # Criar usuário
-@admin_bp.route('/users/create', methods=['POST'])
+@admin_bp.route('/users/create', methods=['GET', 'POST'])
 @login_required
 def create_user():
-    username = request.form.get('username')
-    email = request.form.get('email')
-    full_name = request.form.get('full_name')
-    password = request.form.get('password')
-    confirm_password = request.form.get('confirm_password')
-    role = request.form.get('role')
-    active = 'active' in request.form
-    
-    # Validar dados
-    if not username or not email or not password:
-        flash('Todos os campos obrigatórios devem ser preenchidos.', 'danger')
-        return redirect(url_for('admin.list_users'))
-    
-    if password != confirm_password:
-        flash('As senhas não coincidem.', 'danger')
-        return redirect(url_for('admin.list_users'))
-    
-    # Verificar se o username já existe
-    existing_user = User.query.filter_by(username=username).first()
-    if existing_user:
-        flash('Nome de usuário já está em uso.', 'danger')
-        return redirect(url_for('admin.list_users'))
-    
-    # Verificar se o email já existe
-    existing_user = User.query.filter_by(email=email).first()
-    if existing_user:
-        flash('Email já está em uso.', 'danger')
-        return redirect(url_for('admin.list_users'))
-    
-    # Criar usuário
-    user = User(
-        username=username,
-        email=email,
-        full_name=full_name,
-        role=role,
-        active=active
-    )
-    user.set_password(password)
-    
-    db.session.add(user)
-    db.session.commit()
-    
-    flash('Usuário criado com sucesso.', 'success')
-    return redirect(url_for('admin.list_users'))
+    if request.method == 'POST':
+        # Captura do formulário
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        full_name = request.form.get('full_name', '').strip()
+        role = request.form.get('role', '').strip()
+        active = True if request.form.get('active') == 'on' else False
+        password = request.form.get('password', '').strip()
 
-# Atualizar usuário
-@admin_bp.route('/users/update', methods=['POST'])
+        # 1) Validações iniciais
+        if not username:
+            flash('O nome de usuário é obrigatório.', 'danger')
+            return render_template('admin/create_user.html', form=request.form)
+        if ' ' in username:
+            flash('O nome de usuário não pode conter espaços.', 'danger')
+            return render_template('admin/create_user.html', form=request.form)
+
+        if User.query.filter_by(username=username).first():
+            flash('Este nome de usuário já está em uso.', 'danger')
+            return render_template('admin/create_user.html', form=request.form)
+
+        if not email:
+            flash('O e-mail é obrigatório.', 'danger')
+            return render_template('admin/create_user.html', form=request.form)
+        if User.query.filter_by(email=email).first():
+            flash('Este e-mail já está em uso.', 'danger')
+            return render_template('admin/create_user.html', form=request.form)
+
+        if not password:
+            flash('A senha é obrigatória para criar um novo usuário.', 'danger')
+            return render_template('admin/create_user.html', form=request.form)
+
+        # 2) Criação do objeto User
+        new_user = User(
+            username=username,
+            email=email,
+            full_name=full_name,
+            role=role,
+            active=active
+        )
+        new_user.set_password(password)
+
+        # 3) Commit
+        db.session.add(new_user)
+        db.session.commit()
+
+        flash('Usuário criado com sucesso.', 'success')
+        return redirect(url_for('admin.list_users'))
+
+    # GET: exibe o formulário em branco
+    return render_template('admin/create_user.html')
+
+
+@admin_bp.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
 @login_required
-def update_user():
-    user_id = request.form.get('user_id')
-    username = request.form.get('username')
-    email = request.form.get('email')
-    full_name = request.form.get('full_name')
-    role = request.form.get('role')
-    active = 'active' in request.form
-    reset_password = 'reset_password' in request.form
-    
+def update_user(user_id):
+    # 1) Garantir que user_id seja um inteiro válido. Se não existir, abort 404.
     user = User.query.get_or_404(user_id)
-    
-    # Verificar se o username já existe
-    if username != user.username:
-        existing_user = User.query.filter_by(username=username).first()
-        if existing_user:
-            flash('Nome de usuário já está em uso.', 'danger')
-            return redirect(url_for('admin.list_users'))
-    
-    # Verificar se o email já existe
-    if email != user.email:
-        existing_user = User.query.filter_by(email=email).first()
-        if existing_user:
-            flash('Email já está em uso.', 'danger')
-            return redirect(url_for('admin.list_users'))
-    
-    # Atualizar usuário
-    user.username = username
-    user.email = email
-    user.full_name = full_name
-    user.role = role
-    user.active = active
-    
-    # Resetar senha se solicitado
-    if reset_password:
-        user.set_password('password123')
-        flash('Senha resetada para: password123', 'warning')
-    
-    db.session.commit()
-    flash('Usuário atualizado com sucesso.', 'success')
-    return redirect(url_for('admin.list_users'))
+
+    if request.method == 'POST':
+        # Captura dos dados vindos do form
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        full_name = request.form.get('full_name', '').strip()
+        role = request.form.get('role', '').strip()
+        active = True if request.form.get('active') == 'on' else False
+        password = request.form.get('password', '').strip()
+
+        ### 2) VALIDAÇÕES ###
+
+        # 2.1) Username não pode ser vazio
+        if not username:
+            flash('O nome de usuário não pode ficar vazio.', 'danger')
+            return render_template('admin/edit_user.html', user=user)
+
+        # 2.2) Username não pode conter espaços
+        if ' ' in username:
+            flash('O nome de usuário não pode conter espaços.', 'danger')
+            return render_template('admin/edit_user.html', user=user)
+
+        # 2.3) Se estiver alterando o username, checar unicidade
+        if username != user.username:
+            other = User.query.filter_by(username=username).first()
+            if other:
+                flash('Este nome de usuário já está em uso.', 'danger')
+                return render_template('admin/edit_user.html', user=user)
+
+        # 2.4) Se estiver alterando o e-mail, checar unicidade
+        if email != user.email:
+            other_email = User.query.filter_by(email=email).first()
+            if other_email:
+                flash('Este e-mail já está em uso.', 'danger')
+                return render_template('admin/edit_user.html', user=user)
+
+        # Não exigimos que o usuário digite a senha obrigatoriamente. Se vier em branco, mantém a anterior.
+        # Se quiser alterar a senha, digite algo em password; caso contrário, ignore.
+
+        ### 3) SE PASSOU NAS VALIDAÇÕES, atualizar os campos ###
+        user.username = username
+        user.email = email
+        user.full_name = full_name
+        user.role = role
+        user.active = active
+
+        if password:
+            user.set_password(password)
+            flash('Senha atualizada.', 'info')
+        # Senão: mantém o password_hash atual
+
+        db.session.commit()
+        flash('Informações do usuário atualizadas com sucesso.', 'success')
+        return redirect(url_for('admin.list_users'))
+
+    # ===========================
+    # Método GET: simplesmente carrega o formulário
+    # ===========================
+    # Neste ponto, 'user' já contém todos os dados atuais: username, email, full_name, role, active.
+    # A senha NÃO será “enviada” ao template (ficará em branco por padrão), para o usuário digitar apenas se for alterar.
+    return render_template('admin/edit_user.html', user=user)
 
 # Excluir usuário
 @admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
