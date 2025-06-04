@@ -19,7 +19,10 @@
         <div class="card shadow mb-4">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Conteúdo</h5>
-                <span class="badge bg-{{ 'success' if article.status == 'homologado' else 'warning' if article.status == 'em_analise' else 'secondary' if article.status == 'rascunho' else 'dark' }}">
+                <span class="badge bg-{{ 'success' if article.status == 'homologado' 
+                                    else 'warning' if article.status == 'em_analise' 
+                                    else 'secondary' if article.status == 'rascunho' 
+                                    else 'dark' }}">
                     {{ article.status|replace('_', ' ')|capitalize }}
                 </span>
             </div>
@@ -34,13 +37,13 @@
                         {% endif %}
                     </small>
                 </div>
-                
+
                 <div class="article-content">
                     {{ article.content|safe }}
                 </div>
             </div>
         </div>
-        
+
         {% if article_files %}
         <div class="card shadow mb-4">
             <div class="card-header bg-light">
@@ -69,7 +72,8 @@
                         <p class="mb-1">{{ article_file.reference_text }}</p>
                         {% endif %}
                         <small class="text-muted">
-                            Enviado por {{ article_file.file.uploader.username }} em {{ article_file.file.uploaded_at.strftime('%d/%m/%Y') }}
+                            Enviado por {{ article_file.file.uploader.full_name or article_file.file.uploader.username }} 
+                            em {{ article_file.file.uploaded_at.strftime('%d/%m/%Y') }}
                         </small>
                     </a>
                     {% endfor %}
@@ -78,7 +82,7 @@
         </div>
         {% endif %}
     </div>
-    
+
     <div class="col-md-4">
         <div class="card shadow mb-4">
             <div class="card-header bg-light">
@@ -86,7 +90,7 @@
             </div>
             <div class="card-body">
                 <p><strong>Categoria:</strong> {{ article.category.name }}</p>
-                
+
                 {% if article.tags %}
                 <p><strong>Tags:</strong></p>
                 <div class="mb-3">
@@ -95,7 +99,7 @@
                     {% endfor %}
                 </div>
                 {% endif %}
-                
+
                 {% if current_user.is_admin() %}
                 <hr>
                 <h6>Atribuir Editor</h6>
@@ -115,7 +119,7 @@
                 {% endif %}
             </div>
         </div>
-        
+
         <div class="card shadow mb-4">
             <div class="card-header bg-light">
                 <h5 class="mb-0">Histórico</h5>
@@ -144,19 +148,23 @@
                             {% if entry.action == 'status_change' %}
                             <p class="mb-0">
                                 <small>
-                                    <span class="badge bg-secondary">{{ entry.old_status|replace('_', ' ')|capitalize }}</span>
+                                    <span class="badge bg-secondary">{{ entry.old_status|replace('_',' ')|capitalize }}</span>
                                     <i class="fas fa-arrow-right mx-1"></i>
-                                    <span class="badge bg-{{ 'success' if entry.new_status == 'homologado' else 'warning' if entry.new_status == 'em_analise' else 'secondary' if entry.new_status == 'rascunho' else 'dark' }}">
-                                        {{ entry.new_status|replace('_', ' ')|capitalize }}
+                                    <span class="badge bg-{{ 'success' if entry.new_status=='homologado' 
+                                                                 else 'warning' if entry.new_status=='em_analise' 
+                                                                 else 'secondary' if entry.new_status=='rascunho' 
+                                                                 else 'dark' }}">
+                                        {{ entry.new_status|replace('_',' ')|capitalize }}
                                     </span>
                                 </small>
                             </p>
                             {% endif %}
-                            
+
                             <!-- Link para versão anterior -->
                             {% if entry.version and article.can_view_versions(current_user) %}
                             <p class="mb-0 mt-1">
-                                <a href="{{ url_for('articles.view_version', article_id=article.id, version_id=entry.version.id) }}" class="btn btn-sm btn-outline-secondary">
+                                <a href="{{ url_for('articles.view_version', article_id=article.id, version_id=entry.version.id) }}" 
+                                   class="btn btn-sm btn-outline-secondary">
                                     <i class="fas fa-history me-1"></i>Ver versão {{ entry.version.version_number }}
                                 </a>
                             </p>
@@ -165,11 +173,11 @@
                     </div>
                     {% endfor %}
                 </div>
-                
-                <!-- Link para todas as versões -->
+
                 {% if article.can_view_versions(current_user) %}
                 <div class="text-center mt-3">
-                    <a href="{{ url_for('articles.list_versions', article_id=article.id) }}" class="btn btn-outline-primary btn-sm">
+                    <a href="{{ url_for('articles.list_versions', article_id=article.id) }}" 
+                       class="btn btn-outline-primary btn-sm">
                         <i class="fas fa-history me-1"></i>Ver todas as versões
                     </a>
                 </div>
@@ -186,12 +194,10 @@
         position: relative;
         padding-left: 1.5rem;
     }
-    
     .timeline-item {
         position: relative;
         padding-bottom: 1.5rem;
     }
-    
     .timeline-marker {
         position: absolute;
         left: -1.5rem;
@@ -202,7 +208,6 @@
         border: 2px solid #fff;
         box-shadow: 0 0 0 2px #007bff;
     }
-    
     .timeline-item:not(:last-child):before {
         content: '';
         position: absolute;

@@ -17,6 +17,7 @@ from src.main import app
 from flask_migrate import Migrate
 from src.models import db
 
+
 migrate = Migrate(app, db)
 
 # Não execute o app aqui, apenas exponha a variável 'app' para o Flask CLI

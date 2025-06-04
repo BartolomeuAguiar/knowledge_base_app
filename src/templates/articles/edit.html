@@ -1,89 +1,163 @@
+<!-- knowledge_base_app/src/templates/articles/edit.html -->
 {% extends 'base.html' %}
+
+{% block head_extras %}
+  <!-- ----------------------------------------------------------
+       CSS do Summernote (rich text editor)
+       ---------------------------------------------------------- -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-lite.min.css"
+    rel="stylesheet"
+  >
+  <!-- ----------------------------------------------------------
+       CSS do Select2 (tags pesquisáveis)
+       ---------------------------------------------------------- -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
+    rel="stylesheet"
+  />
+  <style>
+    /* Garante altura mínima para o Summernote */
+    #editor.summernote {
+      min-height: 300px;
+    }
+  </style>
+{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
   <div class="col-md-8">
     <h2>
       {% if article %}
-      <i class="fas fa-edit me-2"></i>Editar Artigo
+        <i class="fas fa-edit me-2"></i>Editar Artigo
       {% else %}
-      <i class="fas fa-plus-circle me-2"></i>Novo Artigo
+        <i class="fas fa-plus-circle me-2"></i>Novo Artigo
       {% endif %}
     </h2>
+  </div>
+  <div class="col-md-4 text-end align-self-center">
+    <!-- Botão Salvar (associado ao form "article-form") -->
+    <button type="submit" form="article-form" class="btn btn-primary">
+      <i class="fas fa-save me-1"></i>Salvar
+    </button>
   </div>
 </div>
 
 <div class="card shadow">
   <div class="card-body">
-    <form method="POST"
-      action="{{ url_for('articles.edit_article', article_id=article.id) if article else url_for('articles.new_article') }}">
+    <!-- ID do form adicionado para usar no botão externo -->
+    <form
+      id="article-form"
+      method="POST"
+      enctype="multipart/form-data"
+      action="{% if article %}
+                {{ url_for('articles.edit_article', article_id=article.id) }}
+              {% else %}
+                {{ url_for('articles.create_article') }}
+              {% endif %}"
+    >
+      <!-- ======================= TÍTULO ======================= -->
       <div class="mb-3">
-        <label for="title" class="form-label">Título</label>
-        <input type="text" class="form-control" id="title" name="title" value="{{ article.title if article else '' }}"
-          required>
+        <label for="title" class="form-label">Título *</label>
+        <input
+          type="text"
+          class="form-control"
+          id="title"
+          name="title"
+          value="{{ article.title if article else '' }}"
+          placeholder="Digite o título do artigo"
+          required
+        >
       </div>
 
+      <!-- =============== CATEGORIA e TAGS (Select2) =============== -->
       <div class="row mb-3">
         <div class="col-md-6">
-          <label for="category_id" class="form-label">Categoria</label>
-          <select class="form-select" id="category_id" name="category_id" required>
-            {% for category in categories %}
-            <option value="{{ category.id }}" {% if article and article.category_id==category.id %}selected{% endif %}>
-              {{ category.name }}
-            </option>
+          <label for="category_id" class="form-label">Categoria *</label>
+          <select
+            class="form-select"
+            id="category_id"
+            name="category_id"
+            required
+          >
+            <option value="" disabled {% if not article %}selected{% endif %}>-- Selecione --</option>
+            {% for category_item in categories %}
+              <option
+                value="{{ category_item.id }}"
+                {% if article and article.category_id == category_item.id %}selected{% endif %}
+              >
+                {{ category_item.name }}
+              </option>
             {% endfor %}
           </select>
         </div>
         <div class="col-md-6">
           <label for="tags" class="form-label">Tags</label>
-          <select class="form-select select2-tags" id="tags" name="tags" multiple
-            data-allow-new="{% if current_user.is_editor() or current_user.is_admin() %}true{% else %}false{% endif %}">
-            {% for tag in tags %}
-            <option value="{{ tag.name }}" {% if article and tag in article.tags %}selected{% endif %}>
-              {{ tag.name }}
-            </option>
+          <select
+            class="form-select select2-tags"
+            id="tags"
+            name="tags"
+            multiple
+            data-allow-new="{% if current_user.is_editor() or current_user.is_admin() %}true{% else %}false{% endif %}"
+          >
+            {% for tag_item in tags %}
+              <option
+                value="{{ tag_item.name }}"
+                {% if article and tag_item in article.tags %}selected{% endif %}
+              >
+                {{ tag_item.name }}
+              </option>
             {% endfor %}
           </select>
+          <div class="form-text">
+            Digite para pesquisar ou criar novas tags (se permitido).
+          </div>
         </div>
       </div>
 
+      <!-- ======================= CONTEÚDO (Summernote) ======================= -->
       <div class="mb-3">
-        <label for="editor" class="form-label">Conteúdo</label>
-        <textarea id="editor" name="content">{{ article.content if article else '' }}</textarea>
+        <label for="editor" class="form-label">Conteúdo *</label>
+        <textarea
+          id="editor"
+          name="content"
+          class="form-control"
+          required
+        >{{ article.content if article else '' }}</textarea>
       </div>
 
-      {# ======================= NOVO BLOCO – SOMENTE PARA ADMINS ======================= #}
+      <!-- ======================= EDITOR DESIGNADO (apenas admins) ======================= -->
       {% if current_user.is_admin() %}
       <div class="mb-3">
         <label for="assigned_editor_id" class="form-label">Editor designado</label>
-        <select name="assigned_editor_id" id="assigned_editor_id" class="form-select">
+        <select
+          name="assigned_editor_id"
+          id="assigned_editor_id"
+          class="form-select"
+        >
           <option value="">— Nenhum —</option>
-          {% for editor in editors %}
-          <option value="{{ editor.id }}" {% if article.assigned_editor_id==editor.id %} selected {% endif %}>
-            {{ editor.username }}
-          </option>
+          {% for editor_item in editors %}
+            <option
+              value="{{ editor_item.id }}"
+              {% if article and article.assigned_editor_id == editor_item.id %}selected{% endif %}
+            >
+              {{ editor_item.username }}
+            </option>
           {% endfor %}
         </select>
         <div class="form-text">
-          Selecione, se quiser, um editor responsável por este artigo (ou deixe em branco para nenhum).
+          Atribua um editor ao artigo (ou deixe em branco para nenhum).
         </div>
       </div>
       {% endif %}
-      {# ================================================================================ #}
 
-      <div class="d-flex justify-content-between">
-        <a href="{{ url_for('articles.view_article', article_id=article.id) if article else url_for('articles.list_articles') }}"
-          class="btn btn-secondary">
-          <i class="fas fa-times me-2"></i>Cancelar
-        </a>
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-save me-2"></i>Salvar
-        </button>
-      </div>
+      <!-- ======================= BOTÕES DENTRO DO FORM (ocultos, pois usamos o externo) ======================= -->
+      <button type="submit" class="d-none"></button>
     </form>
   </div>
 </div>
 
+<!-- ======================= BLOCO DE ARQUIVOS ASSOCIADOS (apenas em edição) ======================= -->
 {% if article %}
 <div class="card shadow mt-4">
   <div class="card-header bg-light">
@@ -92,11 +166,21 @@
   <div class="card-body">
     <div class="row mb-3">
       <div class="col-md-12">
-        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#uploadFileModal">
-          <i class="fas fa-upload me-2"></i>Fazer Upload de Arquivo
+        <!-- Botões para abrir Modais -->
+        <button
+          type="button"
+          class="btn btn-outline-primary me-2"
+          data-bs-toggle="modal"
+          data-bs-target="#uploadFileModal"
+        >
+          <i class="fas fa-upload me-2"></i>Upload de Arquivo
         </button>
-        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal"
-          data-bs-target="#selectFileModal">
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          data-bs-toggle="modal"
+          data-bs-target="#selectFileModal"
+        >
           <i class="fas fa-link me-2"></i>Associar Arquivo Existente
         </button>
       </div>
@@ -116,21 +200,32 @@
           {% for article_file in article.files %}
           <tr>
             <td>
-              <i
-                class="fas {% if article_file.file.is_pdf %}fa-file-pdf{% elif article_file.file.is_zip %}fa-file-archive{% elif article_file.file.is_image %}fa-file-image{% else %}fa-file{% endif %} me-2"></i>
+              <i class="fas 
+                  {% if article_file.file.is_pdf %}fa-file-pdf
+                  {% elif article_file.file.is_zip %}fa-file-archive
+                  {% elif article_file.file.is_image %}fa-file-image
+                  {% else %}fa-file
+                  {% endif %} me-2"></i>
               {{ article_file.file.original_filename }}
             </td>
             <td>{{ article_file.file.mime_type }}</td>
             <td>{{ article_file.reference_text or '-' }}</td>
             <td>
               <div class="btn-group btn-group-sm">
-                <a href="{{ url_for('files.download_file', file_id=article_file.file.id) }}"
-                  class="btn btn-outline-primary" title="Download">
+                <a
+                  href="{{ url_for('files.download_file', file_id=article_file.file.id) }}"
+                  class="btn btn-outline-primary"
+                  title="Download"
+                >
                   <i class="fas fa-download"></i>
                 </a>
-                <button type="button" class="btn btn-outline-danger btn-disassociate-file"
-                  data-article-id="{{ article.id }}" data-file-id="{{ article_file.file.id }}"
-                  title="Remover associação">
+                <button
+                  type="button"
+                  class="btn btn-outline-danger btn-disassociate-file"
+                  data-article-id="{{ article.id }}"
+                  data-file-id="{{ article_file.file.id }}"
+                  title="Remover associação"
+                >
                   <i class="fas fa-unlink"></i>
                 </button>
               </div>
@@ -153,26 +248,51 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title"><i class="fas fa-upload me-2"></i>Upload de Arquivo</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Fechar"
+        ></button>
       </div>
       <div class="modal-body">
-        <form id="file-upload-form" action="{{ url_for('files.upload_file') }}" method="POST"
-          enctype="multipart/form-data">
+        <form
+          id="file-upload-form"
+          action="{{ url_for('files.upload_file') }}"
+          method="POST"
+          enctype="multipart/form-data"
+        >
           <input type="hidden" name="article_id" value="{{ article.id }}">
           <div class="mb-3">
             <label for="file-input" class="form-label">Selecione o arquivo</label>
-            <input type="file" class="form-control" id="file-input" name="file" required>
+            <input
+              type="file"
+              class="form-control"
+              id="file-input"
+              name="file"
+              required
+            >
           </div>
           <div id="file-preview" class="mb-3"></div>
           <div class="mb-3">
             <label for="reference_text" class="form-label">Texto de referência (opcional)</label>
-            <textarea class="form-control" id="reference_text" name="reference_text" rows="3"
-              placeholder="Descreva como este arquivo é referenciado no artigo..."></textarea>
+            <textarea
+              class="form-control"
+              id="reference_text"
+              name="reference_text"
+              rows="3"
+              placeholder="Descreva como este arquivo é referenciado no artigo..."
+            ></textarea>
           </div>
           <div class="mb-3">
             <label for="description" class="form-label">Descrição do arquivo (opcional)</label>
-            <input type="text" class="form-control" id="description" name="description"
-              placeholder="Breve descrição do conteúdo do arquivo...">
+            <input
+              type="text"
+              class="form-control"
+              id="description"
+              name="description"
+              placeholder="Breve descrição do conteúdo do arquivo..."
+            >
           </div>
           <div class="d-grid">
             <button type="submit" class="btn btn-primary">
@@ -191,7 +311,12 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title"><i class="fas fa-link me-2"></i>Associar Arquivo Existente</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Fechar"
+        ></button>
       </div>
       <div class="modal-body">
         <div class="table-responsive">
@@ -205,24 +330,32 @@
               </tr>
             </thead>
             <tbody>
-              {% for file in files %}
-              {% if file not in article.files|map(attribute='file') %}
-              <tr>
-                <td>
-                  <i
-                    class="fas {% if file.is_pdf %}fa-file-pdf{% elif file.is_zip %}fa-file-archive{% elif file.is_image %}fa-file-image{% else %}fa-file{% endif %} me-2"></i>
-                  {{ file.original_filename }}
-                </td>
-                <td>{{ file.mime_type }}</td>
-                <td>{{ (file.file_size / 1024)|round(1) }} KB</td>
-                <td>
-                  <button type="button" class="btn btn-sm btn-outline-primary associate-file-btn"
-                    data-file-id="{{ file.id }}" data-file-name="{{ file.original_filename }}">
-                    <i class="fas fa-link me-1"></i>Associar
-                  </button>
-                </td>
-              </tr>
-              {% endif %}
+              {% for file_item in files %}
+                {% if file_item not in article.files|map(attribute='file') %}
+                <tr>
+                  <td>
+                    <i class="fas 
+                        {% if file_item.is_pdf %}fa-file-pdf
+                        {% elif file_item.is_zip %}fa-file-archive
+                        {% elif file_item.is_image %}fa-file-image
+                        {% else %}fa-file
+                        {% endif %} me-2"></i>
+                    {{ file_item.original_filename }}
+                  </td>
+                  <td>{{ file_item.mime_type }}</td>
+                  <td>{{ (file_item.file_size / 1024)|round(1) }} KB</td>
+                  <td>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary associate-file-btn"
+                      data-file-id="{{ file_item.id }}"
+                      data-file-name="{{ file_item.original_filename }}"
+                    >
+                      <i class="fas fa-link me-1"></i>Associar
+                    </button>
+                  </td>
+                </tr>
+                {% endif %}
               {% else %}
               <tr>
                 <td colspan="4" class="text-center">Nenhum arquivo disponível para associação.</td>
@@ -242,7 +375,12 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title"><i class="fas fa-link me-2"></i>Associar Arquivo</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Fechar"
+        ></button>
       </div>
       <div class="modal-body">
         <form id="file-association-form">
@@ -250,12 +388,17 @@
           <input type="hidden" id="association-article-id" name="article_id" value="{{ article.id }}">
           <div class="mb-3">
             <label class="form-label">Arquivo</label>
-            <p class="form-control-static" id="association-file-name"></p>
+            <p class="form-control-plaintext" id="association-file-name"></p>
           </div>
           <div class="mb-3">
             <label for="association-reference-text" class="form-label">Texto de referência (opcional)</label>
-            <textarea class="form-control" id="association-reference-text" name="reference_text" rows="3"
-              placeholder="Descreva como este arquivo é referenciado no artigo..."></textarea>
+            <textarea
+              class="form-control"
+              id="association-reference-text"
+              name="reference_text"
+              rows="3"
+              placeholder="Descreva como este arquivo é referenciado no artigo..."
+            ></textarea>
           </div>
           <div class="d-grid">
             <button type="submit" class="btn btn-primary">
@@ -272,24 +415,84 @@
 {% endif %}
 {% endblock %}
 
-{% block head_extras %}
-<!-- Summernote CSS (somente nesta página) -->
-<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-lite.min.css" rel="stylesheet">
-<!-- Select2 CSS (somente nesta página) -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-{% endblock %}
-
 {% block scripts_extras %}
-<!-- Summernote JS -->
-<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-lite.min.js"></script>
-<!-- Select2 JS -->
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+  <!-- ----------------------------------------------------------
+       JS do Summernote (rich text editor)
+       ---------------------------------------------------------- -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-lite.min.js"
+  ></script>
+  <!-- ----------------------------------------------------------
+       JS do Select2 (tags pesquisáveis)
+       ---------------------------------------------------------- -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"
+  ></script>
 
-<!-- Carrega somente os módulos JS necessários para esta página -->
-<script src="{{ url_for('static', filename='js/summernote-init.js') }}"></script>
-<script src="{{ url_for('static', filename='js/select2-init.js') }}"></script>
-<script src="{{ url_for('static', filename='js/file-upload.js') }}"></script>
-<script src="{{ url_for('static', filename='js/file-association.js') }}"></script>
-<script src="{{ url_for('static', filename='js/disassociate-file.js') }}"></script>
-<script src="{{ url_for('static', filename='js/article-search.js') }}"></script>
+  <!-- ----------------------------------------------------------
+       Inicialização de Summernote com upload de imagens
+       ---------------------------------------------------------- -->
+  <script>
+    (function() {
+      $('#editor').summernote({
+        placeholder: 'Escreva aqui o conteúdo do artigo...',
+        tabsize: 2,
+        height: 300,
+        callbacks: {
+          /**
+           * Quando o usuário insere/arrasta/solta uma imagem, faz upload via AJAX.
+           */
+          onImageUpload: function(files) {
+            var data = new FormData();
+            data.append('file', files[0]);
+            {% if article %}
+              data.append('article_id', '{{ article.id }}');
+            {% endif %}
+            $.ajax({
+              url: "{{ url_for('files.upload_file') }}",
+              method: "POST",
+              data: data,
+              cache: false,
+              contentType: false,
+              processData: false,
+              success: function(resp) {
+                if (resp.success === false || resp.error) {
+                  console.error('Erro no upload de imagem:', resp.error || resp);
+                  return;
+                }
+                // Insere a imagem recém-enviada no editor
+                var imgUrl = "{{ url_for('files.serve_file', file_id=0) }}".replace('0', resp.file_id);
+                $('#editor').summernote('insertImage', imgUrl);
+              },
+              error: function(err) {
+                console.error('Falha AJAX no upload:', err);
+              }
+            });
+          }
+        }
+      });
+    })();
+  </script>
+
+  <!-- ----------------------------------------------------------
+       Inicialização de Select2 para as tags 
+       ---------------------------------------------------------- -->
+  <script>
+    (function() {
+      $('.select2-tags').select2({
+        tags: true,
+        tokenSeparators: [',', ';'],
+        placeholder: 'Digite para procurar ou criar tags'
+      });
+    })();
+  </script>
+
+  <!-- ----------------------------------------------------------
+       JS de upload/associação/desassociação de arquivos,
+       e busca de artigos (já presentes no repositório)
+       ---------------------------------------------------------- -->
+  <script src="{{ url_for('static', filename='js/file-upload.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/file-association.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/disassociate-file.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/article-search.js') }}"></script>
 {% endblock %}
