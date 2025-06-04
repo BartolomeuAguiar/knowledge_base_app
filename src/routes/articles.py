@@ -1,404 +1,302 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app, make_response
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, current_app, jsonify, send_file
 from flask_login import login_required, current_user
-from werkzeug.utils import secure_filename
-from src.models.article import Article, Category, Tag, ArticleHistory, article_tags
+from src.models.article import Article, ArticleHistory, Category, Tag
+from src.models.article_version import ArticleVersion
 from src.models.file import File, ArticleFile
-from src.models.user import User, db
+from src.models.user import db, User
 import os
-import io
 import uuid
+from werkzeug.utils import secure_filename
 from datetime import datetime
-from xhtml2pdf import pisa
+import io
 
 articles_bp = Blueprint('articles', __name__, url_prefix='/articles')
-
-# Função auxiliar para verificar permissões de visualização/edição
-
-
-def check_article_permission(article_id, edit=False):
-    article = Article.query.get_or_404(article_id)
-
-    if edit:
-        if not article.is_editable_by(current_user):
-            flash('Você não tem permissão para editar este artigo.', 'danger')
-            return None
-    else:
-        if not article.is_viewable_by(current_user):
-            flash('Você não tem permissão para visualizar este artigo.', 'danger')
-            return None
-
-    return article
-
-# Listar artigos
-
 
 @articles_bp.route('/')
 @login_required
 def list_articles():
+    # Filtrar por status
+    status = request.args.get('status', 'homologado')
+    include_archived = request.args.get('include_archived', 'false') == 'true'
+    
+    # Filtrar por categoria
+    category_id = request.args.get('category_id')
+    
+    # Filtrar por tag
+    tag_id = request.args.get('tag_id')
+    
+    # Busca por texto
     search_query = request.args.get('q', '')
-    category_id = request.args.get('category', '')
-    tag_id = request.args.get('tag', '')
-    include_archived = request.args.get('archived', '') == 'true'
-
+    
+    # Construir a query base
     query = Article.query
-
-    if current_user.is_admin() or current_user.is_editor():
-        if not include_archived:
-            query = query.filter(Article.status != 'arquivado')
-    else:
-        if include_archived:
-            query = query.filter(Article.status.in_(
-                ['homologado', 'arquivado']))
+    
+    # Aplicar filtros
+    if status:
+        if status == 'homologado' and not include_archived:
+            query = query.filter(Article.status == 'homologado')
+        elif status == 'homologado' and include_archived:
+            query = query.filter(Article.status.in_(['homologado', 'arquivado']))
         else:
-            query = query.filter_by(status='homologado')
-
-    if search_query:
-        query = query.filter(
-            (Article.title.ilike(f'%{search_query}%')) |
-            (Article.content.ilike(f'%{search_query}%'))
-        )
-
+            query = query.filter(Article.status == status)
+    
+    # Filtrar por categoria
     if category_id:
-        query = query.filter_by(category_id=category_id)
-
+        query = query.filter(Article.category_id == category_id)
+    
+    # Filtrar por tag
     if tag_id:
         query = query.join(Article.tags).filter(Tag.id == tag_id)
-
+    
+    # Busca por texto
+    if search_query:
+        query = query.filter(
+            db.or_(
+                Article.title.ilike(f'%{search_query}%'),
+                Article.content.ilike(f'%{search_query}%')
+            )
+        )
+    
+    # Usuários normais só veem artigos homologados
+    if not current_user.is_editor():
+        query = query.filter(Article.status == 'homologado')
+    
+    # Ordenar por data de atualização
     articles = query.order_by(Article.updated_at.desc()).all()
+    
+    # Obter categorias e tags para os filtros
     categories = Category.query.all()
     tags = Tag.query.all()
-
+    
     return render_template(
         'articles/list.html',
         articles=articles,
         categories=categories,
         tags=tags,
-        search_query=search_query,
+        status=status,
+        include_archived=include_archived,
         category_id=category_id,
         tag_id=tag_id,
-        include_archived=include_archived
+        search_query=search_query
     )
-
-# Visualizar artigo
-
 
 @articles_bp.route('/<int:article_id>')
 @login_required
 def view_article(article_id):
-    article = check_article_permission(article_id)
-    if not article:
+    article = Article.query.get_or_404(article_id)
+    
+    # Verificar permissão
+    if not article.is_viewable_by(current_user):
+        flash('Você não tem permissão para visualizar este artigo.', 'danger')
         return redirect(url_for('articles.list_articles'))
+    
+    # Obter histórico
+    history = ArticleHistory.query.filter_by(article_id=article_id).order_by(ArticleHistory.timestamp.desc()).all()
+    
+    # Obter arquivos associados
+    article_files = ArticleFile.query.filter_by(article_id=article_id).all()
+    
+    return render_template(
+        'articles/view.html',
+        article=article,
+        history=history,
+        article_files=article_files
+    )
 
-    # Verifica de novo (usado no template para mostrar ou não o botão “Editar”)
-    can_edit = article.is_editable_by(current_user)
-    return render_template('articles/view.html', article=article, can_edit=can_edit)
-
-# Criar novo artigo
-
-
-@articles_bp.route('/new', methods=['GET', 'POST'])
+@articles_bp.route('/create', methods=['GET', 'POST'])
 @login_required
-def new_article():
+def create_article():
+    if not current_user.is_editor():
+        flash('Você não tem permissão para criar artigos.', 'danger')
+        return redirect(url_for('articles.list_articles'))
+    
     if request.method == 'POST':
         title = request.form.get('title')
         content = request.form.get('content')
         category_id = request.form.get('category_id')
-        tag_names = request.form.getlist('tags')
-
-        if not title or not content:
-            flash('Título e conteúdo são obrigatórios.', 'danger')
+        tag_ids = request.form.getlist('tags')
+        status = request.form.get('status', 'rascunho')
+        
+        # Validar dados
+        if not title or not content or not category_id:
+            flash('Por favor, preencha todos os campos obrigatórios.', 'danger')
             categories = Category.query.all()
             tags = Tag.query.all()
             return render_template('articles/edit.html', categories=categories, tags=tags)
-
-        if not category_id:
-            categoria_geral = Category.query.filter_by(name='Geral').first()
-            category_id = categoria_geral.id
-
+        
+        # Criar artigo
         article = Article(
             title=title,
             content=content,
-            status='rascunho',
+            category_id=category_id,
+            status=status,
             created_by=current_user.id,
-            updated_by=current_user.id,
-            category_id=category_id
-            # assigned_editor_id ficará None por padrão
+            updated_by=current_user.id
         )
-
-        for tag_name in tag_names:
-            tag = Tag.query.filter_by(name=tag_name).first()
-            if not tag:
-                tag = Tag(name=tag_name)
-                db.session.add(tag)
-            article.tags.append(tag)
-
+        
+        # Adicionar tags
+        if tag_ids:
+            tags = Tag.query.filter(Tag.id.in_(tag_ids)).all()
+            article.tags = tags
+        
         db.session.add(article)
-
+        db.session.commit()
+        
+        # Registrar histórico
         history = ArticleHistory(
-            article=article,
+            article_id=article.id,
             user_id=current_user.id,
             action='create',
-            new_status='rascunho'
+            new_status=status
         )
         db.session.add(history)
-
+        
+        # Salvar versão inicial
+        version = article.save_version(current_user.id)
+        history.version_id = version.id
+        
         db.session.commit()
-
-        flash('Artigo criado com sucesso.', 'success')
+        
+        flash('Artigo criado com sucesso!', 'success')
         return redirect(url_for('articles.view_article', article_id=article.id))
-
+    
+    # GET: Exibir formulário
     categories = Category.query.all()
     tags = Tag.query.all()
     return render_template('articles/edit.html', categories=categories, tags=tags)
 
-# Editar artigo
-
-
 @articles_bp.route('/<int:article_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_article(article_id):
-    article = check_article_permission(article_id, edit=True)
-    if not article:
-        return redirect(url_for('articles.list_articles'))
-
-    # Lista todos os usuários com role='editor' (para o dropdown que só admin verá)
-    editors = User.query.filter_by(role='editor').all()
-
+    article = Article.query.get_or_404(article_id)
+    
+    # Verificar permissão
+    if not article.is_editable_by(current_user):
+        flash('Você não tem permissão para editar este artigo.', 'danger')
+        return redirect(url_for('articles.view_article', article_id=article_id))
+    
     if request.method == 'POST':
         title = request.form.get('title')
         content = request.form.get('content')
         category_id = request.form.get('category_id')
-        tag_names = request.form.getlist('tags')
-
-        if not title or not content:
-            flash('Título e conteúdo são obrigatórios.', 'danger')
+        tag_ids = request.form.getlist('tags')
+        status = request.form.get('status')
+        
+        # Validar dados
+        if not title or not content or not category_id:
+            flash('Por favor, preencha todos os campos obrigatórios.', 'danger')
             categories = Category.query.all()
             tags = Tag.query.all()
-            files = File.query.order_by(File.uploaded_at.desc()).all()
-            return render_template(
-                'articles/edit.html',
-                article=article,
-                categories=categories,
-                tags=tags,
-                files=files,
-                editors=editors  # repassa mesmo em erro para re-renderizar dropdown, se admin
-            )
-
-        # Atualiza campos básicos
+            return render_template('articles/edit.html', article=article, categories=categories, tags=tags)
+        
+        # Verificar se houve mudança de status
+        status_changed = article.status != status
+        old_status = article.status
+        
+        # Atualizar artigo
         article.title = title
         article.content = content
         article.category_id = category_id
+        article.status = status
         article.updated_by = current_user.id
-
-        # Atualiza tags
-        article.tags = []
-        for tag_name in tag_names:
-            tag = Tag.query.filter_by(name=tag_name).first()
-            if not tag:
-                tag = Tag(name=tag_name)
-                db.session.add(tag)
-            article.tags.append(tag)
-
-        # Se o usuário logado for ADMIN, processa o assigned_editor_id
-        if current_user.is_admin():
-            assigned_id = request.form.get('assigned_editor_id')
-            if assigned_id:
-                # Se veio algo e corresponde a um editor válido
-                try:
-                    assigned_id_int = int(assigned_id)
-                    user_assigned = User.query.get(assigned_id_int)
-                    if user_assigned and user_assigned.role == 'editor':
-                        article.assigned_editor_id = assigned_id_int
-                    else:
-                        # Se for inválido (não existe ou não é editor), desempacha
-                        article.assigned_editor_id = None
-                    # Observação: se quiser permitir “desatribuir”, basta enviar campo vazio
-                except ValueError:
-                    article.assigned_editor_id = None
-            else:
-                # Campo vazio → remover atribuição
-                article.assigned_editor_id = None
-
-        # Histórico de atualização
+        
+        # Atualizar tags
+        if tag_ids:
+            tags = Tag.query.filter(Tag.id.in_(tag_ids)).all()
+            article.tags = tags
+        else:
+            article.tags = []
+        
+        # Registrar histórico
+        if status_changed:
+            action = 'status_change'
+        else:
+            action = 'update'
+        
         history = ArticleHistory(
-            article=article,
+            article_id=article.id,
             user_id=current_user.id,
-            action='update'
+            action=action,
+            old_status=old_status if status_changed else None,
+            new_status=status if status_changed else None
         )
         db.session.add(history)
-
+        
+        # Salvar nova versão
+        version = article.save_version(current_user.id)
+        history.version_id = version.id
+        
         db.session.commit()
-
-        flash('Artigo atualizado com sucesso.', 'success')
+        
+        flash('Artigo atualizado com sucesso!', 'success')
         return redirect(url_for('articles.view_article', article_id=article.id))
-
-    # GET: exibe formulário de edição
+    
+    # GET: Exibir formulário
     categories = Category.query.all()
     tags = Tag.query.all()
-    files = File.query.order_by(File.uploaded_at.desc()).all()
+    return render_template('articles/edit.html', article=article, categories=categories, tags=tags)
 
-    return render_template(
-        'articles/edit.html',
-        article=article,
-        categories=categories,
-        tags=tags,
-        files=files,
-        # lista de editores para exibir no dropdown (apenas para admins)
-        editors=editors
-    )
-
-# Alterar status do artigo
-
-
-@articles_bp.route('/<int:article_id>/status', methods=['POST'])
+@articles_bp.route('/<int:article_id>/versions')
 @login_required
-def change_status(article_id):
-    article = check_article_permission(article_id, edit=True)
-    if not article:
-        return redirect(url_for('articles.list_articles'))
-
-    new_status = request.form.get('status')
-    if new_status not in ['rascunho', 'em_analise', 'homologado', 'arquivado']:
-        flash('Status inválido.', 'danger')
-        return redirect(url_for('articles.view_article', article_id=article.id))
-
-    old_status = article.status
-    article.status = new_status
-    article.updated_by = current_user.id
-
-    history = ArticleHistory(
-        article=article,
-        user_id=current_user.id,
-        action='status_change',
-        old_status=old_status,
-        new_status=new_status
-    )
-    db.session.add(history)
-
-    db.session.commit()
-
-    flash(f'Status do artigo alterado para {new_status}.', 'success')
-    return redirect(url_for('articles.view_article', article_id=article.id))
-
-# Excluir artigo (apenas admin)
-
-
-@articles_bp.route('/<int:article_id>/delete', methods=['POST'])
-@login_required
-def delete_article(article_id):
-    if not current_user.is_admin():
-        flash('Apenas administradores podem excluir artigos.', 'danger')
-        return redirect(url_for('articles.list_articles'))
-
+def list_versions(article_id):
     article = Article.query.get_or_404(article_id)
+    
+    # Verificar permissão
+    if not article.can_view_versions(current_user):
+        flash('Você não tem permissão para visualizar versões anteriores deste artigo.', 'danger')
+        return redirect(url_for('articles.view_article', article_id=article_id))
+    
+    # Obter todas as versões
+    versions = ArticleVersion.query.filter_by(article_id=article_id).order_by(ArticleVersion.version_number.desc()).all()
+    
+    return render_template(
+        'articles/versions.html',
+        article=article,
+        versions=versions
+    )
 
-    # Excluir histórico
-    ArticleHistory.query.filter_by(article_id=article.id).delete()
+@articles_bp.route('/<int:article_id>/versions/<int:version_id>')
+@login_required
+def view_version(article_id, version_id):
+    article = Article.query.get_or_404(article_id)
+    version = ArticleVersion.query.get_or_404(version_id)
+    
+    # Verificar se a versão pertence ao artigo
+    if version.article_id != article_id:
+        abort(404)
+    
+    # Verificar permissão
+    if not article.can_view_versions(current_user):
+        flash('Você não tem permissão para visualizar versões anteriores deste artigo.', 'danger')
+        return redirect(url_for('articles.view_article', article_id=article_id))
+    
+    return render_template(
+        'articles/view_version.html',
+        article=article,
+        version=version
+    )
 
-    # Excluir arquivos vinculados
-    ArticleFile.query.filter_by(article_id=article.id).delete()
-
-    # Excluir artigo em si
-    db.session.delete(article)
+@articles_bp.route('/<int:article_id>/assign', methods=['POST'])
+@login_required
+def assign_editor(article_id):
+    if not current_user.is_admin():
+        flash('Apenas administradores podem atribuir editores.', 'danger')
+        return redirect(url_for('articles.view_article', article_id=article_id))
+    
+    article = Article.query.get_or_404(article_id)
+    editor_id = request.form.get('editor_id')
+    
+    if editor_id:
+        editor = User.query.get(editor_id)
+        if not editor or not editor.is_editor():
+            flash('Editor inválido selecionado.', 'danger')
+            return redirect(url_for('articles.view_article', article_id=article_id))
+        
+        article.assigned_editor_id = editor_id
+    else:
+        article.assigned_editor_id = None
+    
     db.session.commit()
-
-    flash('Artigo excluído com sucesso.', 'success')
-    return redirect(url_for('articles.list_articles'))
-
-
-@articles_bp.route('/<int:article_id>/upload-image', methods=['POST'])
-@login_required
-def upload_article_image(article_id):
-    article = check_article_permission(article_id, edit=True)
-    if not article:
-        return jsonify({'error': 'Sem permissão'}), 403
-
-    if 'file' not in request.files:
-        return jsonify({'error': 'Arquivo não encontrado'}), 400
-
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'Nome de arquivo inválido'}), 400
-
-    filename = secure_filename(file.filename)
-    file_id = str(uuid.uuid4())
-    upload_dir = os.path.join(
-        current_app.static_folder, 'uploads', 'articles', str(article_id))
-    os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, f"{file_id}_{filename}")
-    file.save(file_path)
-
-    file_url = url_for(
-        'static', filename=f'uploads/articles/{article_id}/{file_id}_{filename}', _external=True)
-    return jsonify({'url': file_url})
-
-
-@articles_bp.route('/<int:article_id>/export_pdf', methods=['GET'])
-@login_required
-def export_article_pdf(article_id):
-    """
-    Gera um PDF do artigo via xhtml2pdf, incorporando imagens em
-    src/static/uploads/articles/<article_id>/…,
-    adicionando marca d’água e rodapé.
-    """
-    # 1) Busca o artigo
-    artigo = Article.query.get_or_404(article_id)
-
-    # 2) Dados para o rodapé
-    user_name = current_user.username
-    generated_at = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-
-    # 3) Renderiza o HTML-base (com marca d’água e rodapé em <div>)
-    html_out = render_template(
-        'articles/article_pdf.html',
-        article=artigo,
-        user_name=user_name,
-        generated_at=generated_at
-    )
-
-    # 4) Converte HTML em PDF usando BytesIO
-    pdf_buffer = io.BytesIO()
-    result = pisa.CreatePDF(
-        src=html_out,
-        dest=pdf_buffer,
-        link_callback=_link_callback
-    )
-
-    # 5) Se houver erro na geração, retorna 500
-    if result.err:
-        return f"Erro ao gerar PDF: {result.err}", 500
-
-    # 6) Retorna o PDF como download
-    pdf_bytes = pdf_buffer.getvalue()
-    response = make_response(pdf_bytes)
-    response.headers['Content-Type'] = 'application/pdf'
-    filename = f"artigo_{artigo.id}.pdf"
-    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
-    return response
-
-
-def _link_callback(uri, rel):
-    """
-    Converte as URIs em caminhos absolutos. Se detectar recurso externo (http:// ou https://),
-    devolve string vazia para forçar pisa a ignorar a referência, evitando timeouts.
-    """
-    # 1) Se for URL absoluta (http:// ou https://), devolve vazio (ignora)
-    if uri.startswith('http://') or uri.startswith('https://'):
-        return ""  # força pisa a não tentar baixar via HTTPS
-
-    # 2) Se começar com '/', mapeia para "<root_path>/static/..."
-    if uri.startswith('/'):
-        base_path = current_app.root_path  # ex: .../knowledge_base_app/src
-        sub_path = uri.lstrip('/').replace('/', os.path.sep)
-        full_path = os.path.join(base_path, sub_path)
-        if os.path.isfile(full_path):
-            return full_path
-
-        # Se quiser mapear também uploads fora de src, descomente e ajuste:
-        # base_project = os.path.abspath(os.path.join(current_app.root_path, os.pardir))
-        # alt_path = os.path.join(base_project, sub_path)
-        # if os.path.isfile(alt_path):
-        #     return alt_path
-
-    # 3) Qualquer outro caso, retorna string vazia para ignorar
-    return ""
+    
+    flash('Editor atribuído com sucesso!', 'success')
+    return redirect(url_for('articles.view_article', article_id=article_id))

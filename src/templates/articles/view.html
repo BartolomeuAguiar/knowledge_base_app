@@ -1,277 +1,216 @@
-{# src/templates/articles/view.html #}
 {% extends 'base.html' %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col-md-8">
-        <h2>
-            <i class="fas fa-eye me-2"></i>{{ article.title }}
-        </h2>
+        <h2>{{ article.title }}</h2>
     </div>
     <div class="col-md-4 text-md-end">
         {% if article.is_editable_by(current_user) %}
-        <div class="btn-group">
-            {# Botão Exportar para PDF (visível para qualquer usuário autenticado) #}
-            {% if current_user.is_authenticated %}
-            <a href="{{ url_for('articles.export_article_pdf', article_id=article.id) }}"
-               class="btn btn-danger me-1">
-                <i class="fas fa-file-pdf me-1"></i>Exportar PDF
-            </a>
-            {% endif %}
-
-            {# Botão Editar #}
-            <a href="{{ url_for('articles.edit_article', article_id=article.id) }}" class="btn btn-primary me-1">
-                <i class="fas fa-edit me-2"></i>Editar
-            </a>
-
-            {# Dropdown de opções #}
-            <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split"
-                data-bs-toggle="dropdown" aria-expanded="false">
-                <span class="visually-hidden">Opções</span>
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end">
-                <li>
-                    <button type="button" class="dropdown-item" data-bs-toggle="modal"
-                        data-bs-target="#changeStatusModal">
-                        <i class="fas fa-exchange-alt me-2"></i>Alterar Status
-                    </button>
-                </li>
-                {% if current_user.is_admin() %}
-                <li>
-                    <hr class="dropdown-divider">
-                </li>
-                <li>
-                    <button type="button" class="dropdown-item text-danger"
-                        onclick="if(confirmAction('Tem certeza que deseja excluir este artigo? Esta ação não pode ser desfeita.')) document.getElementById('delete-article-form').submit();">
-                        <i class="fas fa-trash-alt me-2"></i>Excluir
-                    </button>
-                    <form id="delete-article-form"
-                        action="{{ url_for('articles.delete_article', article_id=article.id) }}" method="POST"
-                        style="display: none;"></form>
-                </li>
-                {% endif %}
-            </ul>
-        </div>
+        <a href="{{ url_for('articles.edit_article', article_id=article.id) }}" class="btn btn-primary">
+            <i class="fas fa-edit me-2"></i>Editar
+        </a>
         {% endif %}
     </div>
 </div>
 
 <div class="row">
     <div class="col-md-8">
-        <!-- Conteúdo do artigo -->
         <div class="card shadow mb-4">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <span class="status-badge status-{{ article.status }}">
-                    {% if article.status == 'rascunho' %}
-                    <i class="fas fa-pencil-alt me-1"></i>Rascunho
-                    {% elif article.status == 'em_analise' %}
-                    <i class="fas fa-search me-1"></i>Em Análise
-                    {% elif article.status == 'homologado' %}
-                    <i class="fas fa-check-circle me-1"></i>Homologado
-                    {% elif article.status == 'arquivado' %}
-                    <i class="fas fa-archive me-1"></i>Arquivado
-                    {% endif %}
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Conteúdo</h5>
+                <span class="badge bg-{{ 'success' if article.status == 'homologado' else 'warning' if article.status == 'em_analise' else 'secondary' if article.status == 'rascunho' else 'dark' }}">
+                    {{ article.status|replace('_', ' ')|capitalize }}
                 </span>
-                <span class="badge bg-primary">{{ article.category.name }}</span>
             </div>
             <div class="card-body">
-                <div class="article-meta">
-                    <div class="article-meta-item">
-                        <i class="fas fa-user"></i>
-                        Criado por: {{ article.creator.username }}
-                    </div>
-                    <div class="article-meta-item">
-                        <i class="fas fa-calendar"></i>
-                        Data: {{ article.created_at.strftime('%d/%m/%Y %H:%M') }}
-                    </div>
-                    <div class="article-meta-item">
-                        <i class="fas fa-edit"></i>
-                        Última atualização: {{ article.updated_at.strftime('%d/%m/%Y %H:%M') }}
-                    </div>
-                    <div class="article-meta-item">
-                        <i class="fas fa-user-edit"></i>
-                        Atualizado por: {{ article.updater.username }}
-                    </div>
+                <div class="mb-4">
+                    <small class="text-muted">
+                        <i class="fas fa-user me-1"></i> Criado por: {{ article.creator.full_name or article.creator.username }} |
+                        <i class="fas fa-calendar me-1"></i> {{ article.created_at.strftime('%d/%m/%Y %H:%M') }} |
+                        <i class="fas fa-sync me-1"></i> Última atualização: {{ article.updated_at.strftime('%d/%m/%Y %H:%M') }}
+                        {% if article.assigned_editor %}
+                        | <i class="fas fa-user-edit me-1"></i> Editor designado: {{ article.assigned_editor.full_name or article.assigned_editor.username }}
+                        {% endif %}
+                    </small>
                 </div>
-
-                <div class="mb-3">
-                    {% for tag in article.tags %}
-                    <span class="badge bg-secondary me-1">{{ tag.name }}</span>
-                    {% endfor %}
-                </div>
-
+                
                 <div class="article-content">
                     {{ article.content|safe }}
                 </div>
             </div>
-            
         </div>
-    </div>
-
-    <div class="col-md-4">
-        <!-- Arquivos associados -->
+        
+        {% if article_files %}
         <div class="card shadow mb-4">
             <div class="card-header bg-light">
-                <h5 class="mb-0"><i class="fas fa-paperclip me-2"></i>Arquivos</h5>
+                <h5 class="mb-0">Arquivos Anexados</h5>
             </div>
             <div class="card-body">
-                {% if article.files %}
                 <div class="list-group">
-                    {% for article_file in article.files %}
-                    <div class="list-group-item list-group-item-action">
+                    {% for article_file in article_files %}
+                    <a href="{{ url_for('files.download_file', file_id=article_file.file_id) }}" class="list-group-item list-group-item-action">
                         <div class="d-flex w-100 justify-content-between">
-                            <h6 class="mb-1">
-                                <i
-                                    class="fas {% if article_file.file.is_pdf %}fa-file-pdf{% elif article_file.file.is_zip %}fa-file-archive{% elif article_file.file.is_image %}fa-file-image{% else %}fa-file{% endif %} me-2"></i>
+                            <h5 class="mb-1">
+                                {% if article_file.file.is_image %}
+                                <i class="fas fa-image me-2"></i>
+                                {% elif article_file.file.is_pdf %}
+                                <i class="fas fa-file-pdf me-2"></i>
+                                {% elif article_file.file.is_zip %}
+                                <i class="fas fa-file-archive me-2"></i>
+                                {% else %}
+                                <i class="fas fa-file me-2"></i>
+                                {% endif %}
                                 {{ article_file.file.original_filename }}
-                            </h6>
+                            </h5>
                             <small>{{ (article_file.file.file_size / 1024)|round(1) }} KB</small>
                         </div>
                         {% if article_file.reference_text %}
-                        <p class="mb-1 small">{{ article_file.reference_text }}</p>
+                        <p class="mb-1">{{ article_file.reference_text }}</p>
                         {% endif %}
-                        <div class="mt-2">
-                            <a href="{{ url_for('files.download_file', file_id=article_file.file.id) }}"
-                                class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-download me-1"></i>Download
-                            </a>
-                        </div>
-                    </div>
+                        <small class="text-muted">
+                            Enviado por {{ article_file.file.uploader.username }} em {{ article_file.file.uploaded_at.strftime('%d/%m/%Y') }}
+                        </small>
+                    </a>
                     {% endfor %}
                 </div>
-                {% else %}
-                <p class="text-muted mb-0">Nenhum arquivo associado a este artigo.</p>
-                {% endif %}
             </div>
         </div>
-
-        <!-- Histórico de alterações -->
-        <div class="card shadow">
+        {% endif %}
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card shadow mb-4">
             <div class="card-header bg-light">
-                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Histórico</h5>
+                <h5 class="mb-0">Informações</h5>
             </div>
             <div class="card-body">
-                {% if article.history %}
+                <p><strong>Categoria:</strong> {{ article.category.name }}</p>
+                
+                {% if article.tags %}
+                <p><strong>Tags:</strong></p>
+                <div class="mb-3">
+                    {% for tag in article.tags %}
+                    <span class="badge bg-info text-dark me-1">{{ tag.name }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                {% if current_user.is_admin() %}
+                <hr>
+                <h6>Atribuir Editor</h6>
+                <form action="{{ url_for('articles.assign_editor', article_id=article.id) }}" method="POST">
+                    <div class="mb-3">
+                        <select name="editor_id" class="form-select">
+                            <option value="">-- Nenhum editor --</option>
+                            {% for editor in editors %}
+                            <option value="{{ editor.id }}" {% if article.assigned_editor_id == editor.id %}selected{% endif %}>
+                                {{ editor.full_name or editor.username }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-primary">Atribuir</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card shadow mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Histórico</h5>
+            </div>
+            <div class="card-body">
                 <div class="timeline">
-                    {% for history in article.history|sort(attribute='timestamp', reverse=true) %}
+                    {% for entry in history %}
                     <div class="timeline-item">
-                        <div class="timeline-date">{{ history.timestamp.strftime('%d/%m/%Y %H:%M') }}</div>
+                        <div class="timeline-marker"></div>
                         <div class="timeline-content">
-                            <div class="timeline-title">
-                                {% if history.action == 'create' %}
-                                <i class="fas fa-plus-circle me-1"></i>Artigo criado
-                                {% elif history.action == 'update' %}
-                                <i class="fas fa-edit me-1"></i>Artigo atualizado
-                                {% elif history.action == 'status_change' %}
-                                <i class="fas fa-exchange-alt me-1"></i>Status alterado
+                            <h6 class="mb-0">
+                                {% if entry.action == 'create' %}
+                                <i class="fas fa-plus-circle text-success me-1"></i> Criação
+                                {% elif entry.action == 'update' %}
+                                <i class="fas fa-edit text-primary me-1"></i> Atualização
+                                {% elif entry.action == 'status_change' %}
+                                <i class="fas fa-exchange-alt text-warning me-1"></i> Mudança de Status
                                 {% endif %}
-                            </div>
-                            <div class="timeline-body">
-                                <span class="text-muted">por {{ history.user.username }}</span>
-                                {% if history.action == 'status_change' %}
-                                <div class="mt-1">
-                                    <span class="status-badge status-{{ history.old_status }}">{{ history.old_status
-                                        }}</span>
-                                    <i class="fas fa-arrow-right mx-2"></i>
-                                    <span class="status-badge status-{{ history.new_status }}">{{ history.new_status
-                                        }}</span>
-                                </div>
-                                {% endif %}
-                            </div>
+                            </h6>
+                            <p class="text-muted mb-0">
+                                <small>
+                                    {{ entry.user.full_name or entry.user.username }} - 
+                                    {{ entry.timestamp.strftime('%d/%m/%Y %H:%M') }}
+                                </small>
+                            </p>
+                            {% if entry.action == 'status_change' %}
+                            <p class="mb-0">
+                                <small>
+                                    <span class="badge bg-secondary">{{ entry.old_status|replace('_', ' ')|capitalize }}</span>
+                                    <i class="fas fa-arrow-right mx-1"></i>
+                                    <span class="badge bg-{{ 'success' if entry.new_status == 'homologado' else 'warning' if entry.new_status == 'em_analise' else 'secondary' if entry.new_status == 'rascunho' else 'dark' }}">
+                                        {{ entry.new_status|replace('_', ' ')|capitalize }}
+                                    </span>
+                                </small>
+                            </p>
+                            {% endif %}
+                            
+                            <!-- Link para versão anterior -->
+                            {% if entry.version and article.can_view_versions(current_user) %}
+                            <p class="mb-0 mt-1">
+                                <a href="{{ url_for('articles.view_version', article_id=article.id, version_id=entry.version.id) }}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-history me-1"></i>Ver versão {{ entry.version.version_number }}
+                                </a>
+                            </p>
+                            {% endif %}
                         </div>
                     </div>
                     {% endfor %}
                 </div>
-                {% else %}
-                <p class="text-muted mb-0">Nenhum histórico disponível.</p>
+                
+                <!-- Link para todas as versões -->
+                {% if article.can_view_versions(current_user) %}
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('articles.list_versions', article_id=article.id) }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-history me-1"></i>Ver todas as versões
+                    </a>
+                </div>
                 {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal de Alteração de Status -->
-<div class="modal fade" id="changeStatusModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-exchange-alt me-2"></i>Alterar Status</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body">
-                <form action="{{ url_for('articles.change_status', article_id=article.id) }}" method="POST">
-                    <div class="mb-3">
-                        <label for="status" class="form-label">Novo Status</label>
-                        <select class="form-select" id="status" name="status" required>
-                            <option value="rascunho" {% if article.status=='rascunho' %}selected{% endif %}>Rascunho
-                            </option>
-                            <option value="em_analise" {% if article.status=='em_analise' %}selected{% endif %}>Em
-                                Análise</option>
-                            <option value="homologado" {% if article.status=='homologado' %}selected{% endif %}>
-                                Homologado</option>
-                            <option value="arquivado" {% if article.status=='arquivado' %}selected{% endif %}>Arquivado
-                            </option>
-                        </select>
-                    </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-2"></i>Salvar Alteração
-                        </button>
-                    </div>
-                </form>
             </div>
         </div>
     </div>
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script>
-    // Adicionar estilos CSS para a timeline
-    document.addEventListener('DOMContentLoaded', function () {
-        const style = document.createElement('style');
-        style.textContent = `
-            .timeline {
-                position: relative;
-                padding-left: 30px;
-            }
-            .timeline:before {
-                content: '';
-                position: absolute;
-                left: 10px;
-                top: 0;
-                bottom: 0;
-                width: 2px;
-                background: #e9ecef;
-            }
-            .timeline-item {
-                position: relative;
-                margin-bottom: 20px;
-            }
-            .timeline-item:before {
-                content: '';
-                position: absolute;
-                left: -30px;
-                top: 0;
-                width: 12px;
-                height: 12px;
-                border-radius: 50%;
-                background: var(--primary-color);
-            }
-            .timeline-date {
-                font-size: 0.8rem;
-                color: var(--secondary-color);
-                margin-bottom: 5px;
-            }
-            .timeline-title {
-                font-weight: 500;
-                margin-bottom: 5px;
-            }
-            .timeline-body {
-                font-size: 0.9rem;
-            }
-        `;
-        document.head.appendChild(style);
-    });
-</script>
+{% block styles %}
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 1.5rem;
+    }
+    
+    .timeline-item {
+        position: relative;
+        padding-bottom: 1.5rem;
+    }
+    
+    .timeline-marker {
+        position: absolute;
+        left: -1.5rem;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background-color: #007bff;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 2px #007bff;
+    }
+    
+    .timeline-item:not(:last-child):before {
+        content: '';
+        position: absolute;
+        left: -1.1rem;
+        top: 15px;
+        height: calc(100% - 15px);
+        width: 2px;
+        background-color: #e9ecef;
+    }
+</style>
 {% endblock %}

@@ -1,9 +1,10 @@
 from datetime import datetime
-from src.models.user import db, User  # adicionamos a importação de User para o relacionamento
+from src.models.user import db, User
+from src.models.article_version import ArticleVersion
 
+# adicionamos a importação de User para o relacionamento
 class Category(db.Model):
     __tablename__ = 'categories'
-    
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
     description = db.Column(db.Text, nullable=True)
@@ -24,7 +25,6 @@ article_tags = db.Table('article_tags',
 
 class Tag(db.Model):
     __tablename__ = 'tags'
-    
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False, unique=True)
     
@@ -33,7 +33,6 @@ class Tag(db.Model):
 
 class Article(db.Model):
     __tablename__ = 'articles'
-    
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
@@ -45,10 +44,9 @@ class Article(db.Model):
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     # Última atualização
     updated_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
     
-    # NOVO: campo “editor designado” (opcional)
+    # NOVO: campo "editor designado" (opcional)
     assigned_editor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     
     # Relacionamentos
@@ -58,7 +56,7 @@ class Article(db.Model):
     
     # Relacionamento para o editor designado
     assigned_editor = db.relationship('User', foreign_keys=[assigned_editor_id], backref='articles_assigned')
-
+    
     def __repr__(self):
         return f'<Article {self.title}>'
     
@@ -71,14 +69,14 @@ class Article(db.Model):
     def is_editable_by(self, user):
         """
         Verifica se o usuário pode editar o artigo:
-         - Administradores podem editar sempre.
-         - Editores (role='editor') podem editar somente se:
-             • forem quem criou (created_by) OU
-             • forem o assigned_editor deste artigo.
+        - Administradores podem editar sempre.
+        - Editores (role='editor') podem editar somente se:
+          • forem quem criou (created_by) OU
+          • forem o assigned_editor deste artigo.
         """
         if user.is_admin():
             return True
-
+            
         # Se for editor regular (ou super‐editor), precisa ser autor ou designado
         if user.is_editor():
             if user.id == self.created_by:
@@ -87,10 +85,30 @@ class Article(db.Model):
                 return True
         
         return False
+    
+    def can_view_versions(self, user):
+        """
+        Verifica se o usuário pode visualizar versões anteriores do artigo.
+        Apenas administradores e editores podem ver versões anteriores.
+        """
+        return user.is_admin() or user.is_editor()
+    
+    def save_version(self, user_id):
+        """
+        Salva uma nova versão do artigo atual.
+        
+        Args:
+            user_id: ID do usuário que está criando a versão
+            
+        Returns:
+            Nova instância de ArticleVersion
+        """
+        version = ArticleVersion.create_from_article(self, user_id)
+        db.session.add(version)
+        return version
 
 class ArticleHistory(db.Model):
     __tablename__ = 'article_history'
-    
     id = db.Column(db.Integer, primary_key=True)
     article_id = db.Column(db.Integer, db.ForeignKey('articles.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -98,8 +116,11 @@ class ArticleHistory(db.Model):
     old_status = db.Column(db.String(20), nullable=True)
     new_status = db.Column(db.String(20), nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    version_id = db.Column(db.Integer, db.ForeignKey('article_versions.id'), nullable=True)
     
+    # Relacionamentos
     user = db.relationship('User', backref='article_actions')
+    version = db.relationship('ArticleVersion', backref='history_entries')
     
     def __repr__(self):
         return f'<ArticleHistory {self.action} on {self.article_id}>'

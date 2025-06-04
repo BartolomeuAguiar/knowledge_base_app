@@ -1,71 +1,103 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app, send_from_directory
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, current_app, jsonify, send_file
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
+import os
+import uuid
+import io
+from datetime import datetime
+
 from src.models.file import File, ArticleFile
 from src.models.article import Article
 from src.models.user import db
-import os
-import uuid
-from datetime import datetime
 
 files_bp = Blueprint('files', __name__, url_prefix='/files')
 
-# Extensões permitidas
-ALLOWED_EXTENSIONS = {
-    'pdf': 'application/pdf',
-    'zip': 'application/zip',
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'png': 'image/png',
-    'gif': 'image/gif'
-}
-
 def allowed_file(filename):
+    """Verifica se a extensão do arquivo é permitida"""
+    ALLOWED_EXTENSIONS = {'pdf', 'zip', 'png', 'jpg', 'jpeg', 'gif'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Upload de arquivo
+@files_bp.route('/')
+@login_required
+def list_files():
+    """Lista todos os arquivos"""
+    files = File.query.order_by(File.uploaded_at.desc()).all()
+    return render_template('files/list.html', files=files)
+
+@files_bp.route('/<int:file_id>')
+@login_required
+def download_file(file_id):
+    """Download de arquivo"""
+    file = File.query.get_or_404(file_id)
+    
+    # Se o arquivo está armazenado no banco de dados
+    if file.stored_in_db and file.file_content:
+        # Criar um objeto BytesIO a partir do conteúdo binário
+        file_data = io.BytesIO(file.file_content)
+        
+        # Enviar o arquivo como resposta
+        return send_file(
+            file_data,
+            mimetype=file.mime_type,
+            as_attachment=True,
+            download_name=file.original_filename
+        )
+    
+    # Se o arquivo está no sistema de arquivos
+    elif file.file_path and os.path.exists(file.file_path):
+        return send_file(
+            file.file_path,
+            mimetype=file.mime_type,
+            as_attachment=True,
+            download_name=file.original_filename
+        )
+    
+    # Arquivo não encontrado
+    else:
+        flash('Arquivo não encontrado.', 'danger')
+        return redirect(url_for('files.list_files'))
+
 @files_bp.route('/upload', methods=['POST'])
 @login_required
 def upload_file():
+    """Upload de arquivo"""
     # Verificar se há arquivo na requisição
     if 'file' not in request.files:
-        flash('Nenhum arquivo enviado', 'danger')
-        return redirect(url_for('files.list_files'))
+        return jsonify({'success': False, 'error': 'Nenhum arquivo enviado'})
         
     file = request.files['file']
     
     # Verificar se o arquivo tem nome
     if file.filename == '':
-        flash('Nenhum arquivo selecionado', 'danger')
-        return redirect(url_for('files.list_files'))
+        return jsonify({'success': False, 'error': 'Nenhum arquivo selecionado'})
         
     # Verificar se o arquivo é permitido
     if not allowed_file(file.filename):
-        flash('Tipo de arquivo não permitido', 'danger')
-        return redirect(url_for('files.list_files'))
+        return jsonify({'success': False, 'error': 'Tipo de arquivo não permitido'})
         
     # Gerar nome seguro para o arquivo
     original_filename = secure_filename(file.filename)
     extension = original_filename.rsplit('.', 1)[1].lower()
     filename = f"{uuid.uuid4().hex}.{extension}"
     
-    # Salvar arquivo
-    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-    file.save(file_path)
-    
     # Determinar tipo de arquivo
-    file_type = ALLOWED_EXTENSIONS[extension]
+    file_type = file.content_type
     
-    # Registrar arquivo no banco de dados
+    # Ler o conteúdo do arquivo
+    file_content = file.read()
+    file_size = len(file_content)
+    
+    # Criar registro no banco de dados
     new_file = File(
         filename=filename,
         original_filename=original_filename,
-        file_path=file_path,
         file_type=file_type,
-        file_size=os.path.getsize(file_path),
-        mime_type=file_type,
+        file_size=file_size,
+        mime_type=file.content_type,
         description=request.form.get('description', ''),
-        uploaded_by=current_user.id
+        uploaded_by=current_user.id,
+        file_content=file_content,  # Armazenar conteúdo no banco
+        stored_in_db=True  # Marcar como armazenado no banco
     )
     
     db.session.add(new_file)
@@ -90,117 +122,56 @@ def upload_file():
     flash(f'Arquivo "{original_filename}" enviado com sucesso!', 'success')
     return redirect(url_for('files.list_files'))
 
-
-# Baixar arquivo
-@files_bp.route('/<int:file_id>/download')
-@login_required
-def download_file(file_id):
+@files_bp.route('/serve/<int:file_id>')
+def serve_file(file_id):
+    """Serve um arquivo para visualização no navegador (não como download)"""
     file = File.query.get_or_404(file_id)
     
-    # Verificar permissões (todos os usuários autenticados podem baixar arquivos)
-    upload_folder = current_app.config['UPLOAD_FOLDER']
-    return send_from_directory(
-        upload_folder, 
-        file.filename, 
-        as_attachment=True, 
-        download_name=file.original_filename
-    )
-
-# Listar arquivos
-@files_bp.route('/')
-@login_required
-def list_files():
-    # Apenas administradores e editores podem ver todos os arquivos
-    if current_user.is_admin() or current_user.is_editor():
-        files = File.query.order_by(File.uploaded_at.desc()).all()
-    else:
-        # Usuários normais só veem seus próprios arquivos
-        files = File.query.filter_by(uploaded_by=current_user.id).order_by(File.uploaded_at.desc()).all()
+    # Se o arquivo está armazenado no banco de dados
+    if file.stored_in_db and file.file_content:
+        # Criar um objeto BytesIO a partir do conteúdo binário
+        file_data = io.BytesIO(file.file_content)
+        
+        # Enviar o arquivo como resposta
+        return send_file(
+            file_data,
+            mimetype=file.mime_type,
+            as_attachment=False
+        )
     
-    return render_template('files/list.html', files=files)
+    # Se o arquivo está no sistema de arquivos
+    elif file.file_path and os.path.exists(file.file_path):
+        return send_file(
+            file.file_path,
+            mimetype=file.mime_type,
+            as_attachment=False
+        )
+    
+    # Arquivo não encontrado
+    else:
+        abort(404)
 
-# Excluir arquivo
-@files_bp.route('/<int:file_id>/delete', methods=['POST'])
+@files_bp.route('/delete/<int:file_id>', methods=['POST'])
 @login_required
 def delete_file(file_id):
+    """Exclui um arquivo"""
     file = File.query.get_or_404(file_id)
     
-    # Verificar permissões
+    # Verificar permissão (apenas admin ou quem enviou)
     if not current_user.is_admin() and file.uploaded_by != current_user.id:
         flash('Você não tem permissão para excluir este arquivo.', 'danger')
         return redirect(url_for('files.list_files'))
     
-    # Remover referências em artigos
-    ArticleFile.query.filter_by(file_id=file.id).delete()
+    # Remover associações com artigos
+    ArticleFile.query.filter_by(file_id=file_id).delete()
     
-    # Excluir arquivo físico
-    try:
+    # Se o arquivo estiver no sistema de arquivos, excluí-lo
+    if not file.stored_in_db and file.file_path and os.path.exists(file.file_path):
         os.remove(file.file_path)
-    except:
-        flash('Não foi possível excluir o arquivo físico.', 'warning')
     
-    # Excluir registro do banco de dados
+    # Excluir registro do banco
     db.session.delete(file)
     db.session.commit()
     
-    flash('Arquivo excluído com sucesso.', 'success')
+    flash('Arquivo excluído com sucesso!', 'success')
     return redirect(url_for('files.list_files'))
-
-# Associar arquivo a artigo
-@files_bp.route('/associate', methods=['POST'])
-@login_required
-def associate_file():
-    article_id = request.form.get('article_id')
-    file_id = request.form.get('file_id')
-    reference_text = request.form.get('reference_text', '')
-    
-    if not article_id or not file_id:
-        return jsonify({'success': False, 'message': 'Dados incompletos'}), 400
-    
-    article = Article.query.get_or_404(article_id)
-    file = File.query.get_or_404(file_id)
-    
-    # Verificar permissões
-    if not article.is_editable_by(current_user):
-        return jsonify({'success': False, 'message': 'Sem permissão para editar este artigo'}), 403
-    
-    # Verificar se já existe associação
-    existing = ArticleFile.query.filter_by(article_id=article_id, file_id=file_id).first()
-    if existing:
-        existing.reference_text = reference_text
-        db.session.commit()
-        return jsonify({'success': True, 'message': 'Referência atualizada'})
-    
-    # Criar nova associação
-    article_file = ArticleFile(
-        article_id=article_id,
-        file_id=file_id,
-        reference_text=reference_text
-    )
-    
-    db.session.add(article_file)
-    db.session.commit()
-    
-    return jsonify({'success': True, 'message': 'Arquivo associado com sucesso'})
-
-# Remover associação de arquivo com artigo
-@files_bp.route('/disassociate', methods=['POST'])
-@login_required
-def disassociate_file():
-    article_id = request.form.get('article_id')
-    file_id = request.form.get('file_id')
-    
-    if not article_id or not file_id:
-        return jsonify({'success': False, 'message': 'Dados incompletos'}), 400
-    
-    article = Article.query.get_or_404(article_id)
-    
-    # Verificar permissões
-    if not article.is_editable_by(current_user):
-        return jsonify({'success': False, 'message': 'Sem permissão para editar este artigo'}), 403
-    
-    # Remover associação
-    ArticleFile.query.filter_by(article_id=article_id, file_id=file_id).delete()
-    db.session.commit()
-    
-    return jsonify({'success': True, 'message': 'Associação removida com sucesso'})
