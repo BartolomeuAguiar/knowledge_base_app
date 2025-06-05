@@ -3,8 +3,8 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 import os
 import uuid
-import io
 from datetime import datetime
+import io
 
 from src.models.file import File, ArticleFile
 from src.models.article import Article
@@ -63,17 +63,26 @@ def upload_file():
     """Upload de arquivo"""
     # Verificar se há arquivo na requisição
     if 'file' not in request.files:
-        return jsonify({'success': False, 'error': 'Nenhum arquivo enviado'})
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': 'Nenhum arquivo enviado'})
+        flash('Nenhum arquivo enviado', 'danger')
+        return redirect(url_for('files.list_files'))
         
     file = request.files['file']
     
     # Verificar se o arquivo tem nome
     if file.filename == '':
-        return jsonify({'success': False, 'error': 'Nenhum arquivo selecionado'})
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': 'Nenhum arquivo selecionado'})
+        flash('Nenhum arquivo selecionado', 'danger')
+        return redirect(url_for('files.list_files'))
         
     # Verificar se o arquivo é permitido
     if not allowed_file(file.filename):
-        return jsonify({'success': False, 'error': 'Tipo de arquivo não permitido'})
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': 'Tipo de arquivo não permitido'})
+        flash('Tipo de arquivo não permitido', 'danger')
+        return redirect(url_for('files.list_files'))
         
     # Gerar nome seguro para o arquivo
     original_filename = secure_filename(file.filename)
@@ -115,8 +124,26 @@ def upload_file():
             )
             db.session.add(article_file)
             db.session.commit()
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': True,
+                    'file_id': new_file.id,
+                    'filename': original_filename,
+                    'file_type': file_type
+                })
+            
             flash(f'Arquivo "{original_filename}" enviado e associado ao artigo com sucesso!', 'success')
             return redirect(url_for('articles.edit_article', article_id=article_id))
+    
+    # Se for uma requisição AJAX, retornar JSON
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'success': True,
+            'file_id': new_file.id,
+            'filename': original_filename,
+            'file_type': file_type
+        })
     
     # Se não estiver associado a um artigo, redirecionar para a lista de arquivos
     flash(f'Arquivo "{original_filename}" enviado com sucesso!', 'success')

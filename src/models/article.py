@@ -53,6 +53,8 @@ class Article(db.Model):
     tags = db.relationship('Tag', secondary=article_tags, backref=db.backref('articles', lazy='dynamic'))
     files = db.relationship('ArticleFile', backref='article', lazy=True)
     history = db.relationship('ArticleHistory', backref='article', lazy=True)
+    versions = db.relationship('ArticleVersion', back_populates='article', cascade='all, delete-orphan')
+
     
     # Relacionamento para o editor designado
     assigned_editor = db.relationship('User', foreign_keys=[assigned_editor_id], backref='articles_assigned')

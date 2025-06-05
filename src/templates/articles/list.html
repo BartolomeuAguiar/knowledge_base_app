@@ -65,54 +65,54 @@
 <!-- Lista de artigos -->
 <div class="row">
     {% if articles %}
-        {% for article in articles %}
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span class="status-badge status-{{ article.status }}">
-                        {% if article.status == 'rascunho' %}
-                            <i class="fas fa-pencil-alt me-1"></i>Rascunho
-                        {% elif article.status == 'em_analise' %}
-                            <i class="fas fa-search me-1"></i>Em Análise
-                        {% elif article.status == 'homologado' %}
-                            <i class="fas fa-check-circle me-1"></i>Homologado
-                        {% elif article.status == 'arquivado' %}
-                            <i class="fas fa-archive me-1"></i>Arquivado
-                        {% endif %}
-                    </span>
-                    <span class="badge bg-primary">{{ article.category.name }}</span>
-                </div>
-                <div class="card-body">
-                    <h5 class="card-title">{{ article.title }}</h5>
-                    <p class="card-text text-muted small">
-                        <i class="fas fa-user me-1"></i>{{ article.creator.username }} | 
-                        <i class="fas fa-calendar me-1"></i>{{ article.created_at.strftime('%d/%m/%Y') }}
-                    </p>
-                    <div class="mt-2">
-                        {% for tag in article.tags %}
-                        <span class="badge bg-secondary me-1">{{ tag.name }}</span>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div class="card-footer bg-white">
-                    <a href="{{ url_for('articles.view_article', article_id=article.id) }}" class="btn btn-sm btn-outline-primary">
-                        <i class="fas fa-eye me-1"></i>Visualizar
-                    </a>
-                    {% if article.is_editable_by(current_user) %}
-                    <a href="{{ url_for('articles.edit_article', article_id=article.id) }}" class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-edit me-1"></i>Editar
-                    </a>
+    {% for article in articles %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span class="status-badge status-{{ article.status }}">
+                    {% if article.status == 'rascunho' %}
+                    <i class="fas fa-pencil-alt me-1"></i>Rascunho
+                    {% elif article.status == 'em_analise' %}
+                    <i class="fas fa-search me-1"></i>Em Análise
+                    {% elif article.status == 'homologado' %}
+                    <i class="fas fa-check-circle me-1"></i>Homologado
+                    {% elif article.status == 'arquivado' %}
+                    <i class="fas fa-archive me-1"></i>Arquivado
                     {% endif %}
+                </span>
+                <span class="badge bg-primary">{{ article.category.name }}</span>
+            </div>
+            <div class="card-body">
+                <h5 class="card-title">{{ article.title }}</h5>
+                <p class="card-text text-muted small">
+                    <i class="fas fa-user me-1"></i>{{ article.creator.username }} |
+                    <i class="fas fa-calendar me-1"></i>{{ article.created_at.strftime('%d/%m/%Y') }}
+                </p>
+                <div class="mt-2">
+                    {% for tag in article.tags %}
+                    <span class="badge bg-secondary me-1">{{ tag.name }}</span>
+                    {% endfor %}
                 </div>
             </div>
-        </div>
-        {% endfor %}
-    {% else %}
-        <div class="col-12">
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i>Nenhum artigo encontrado com os filtros selecionados.
+            <div class="card-footer bg-white">
+                <a href="{{ url_for('articles.view_article', article_id=article.id) }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-eye me-1"></i>Visualizar
+                </a>
+                {% if article.is_editable_by(current_user) %}
+                <a href="{{ url_for('articles.edit_article', article_id=article.id) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-edit me-1"></i>Editar
+                </a>
+                {% endif %}
             </div>
         </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>Nenhum artigo encontrado com os filtros selecionados.
+        </div>
+    </div>
     {% endif %}
 </div>
 {% endblock %}

@@ -39,7 +39,7 @@
           <select class="form-select select2-tags" id="tags" name="tags" multiple
             data-allow-new="{% if current_user.is_editor() or current_user.is_admin() %}true{% else %}false{% endif %}">
             {% for tag in tags %}
-            <option value="{{ tag.name }}" {% if article and tag in article.tags %}selected{% endif %}>
+            <option value="{{ tag.id }}" {% if article and tag in article.tags %}selected{% endif %}>
               {{ tag.name }}
             </option>
             {% endfor %}

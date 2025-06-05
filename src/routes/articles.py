@@ -9,6 +9,8 @@ import uuid
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import io
+import tempfile
+from weasyprint import HTML, CSS
 
 articles_bp = Blueprint('articles', __name__, url_prefix='/articles')
 
@@ -17,13 +19,13 @@ articles_bp = Blueprint('articles', __name__, url_prefix='/articles')
 def list_articles():
     # Filtrar por status
     status = request.args.get('status', 'homologado')
-    include_archived = request.args.get('include_archived', 'false') == 'true'
+    include_archived = request.args.get('archived', 'false') == 'true'
     
     # Filtrar por categoria
-    category_id = request.args.get('category_id')
+    category_id = request.args.get('category')
     
     # Filtrar por tag
-    tag_id = request.args.get('tag_id')
+    tag_id = request.args.get('tag')
     
     # Busca por texto
     search_query = request.args.get('q', '')
@@ -96,11 +98,17 @@ def view_article(article_id):
     # Obter arquivos associados
     article_files = ArticleFile.query.filter_by(article_id=article_id).all()
     
+    # Obter editores para atribuição (apenas para admins)
+    editors = []
+    if current_user.is_admin():
+        editors = User.query.filter(User.role.in_(['admin', 'editor'])).all()
+    
     return render_template(
         'articles/view.html',
         article=article,
         history=history,
-        article_files=article_files
+        article_files=article_files,
+        editors=editors
     )
 
 @articles_bp.route('/create', methods=['GET', 'POST'])
@@ -154,7 +162,6 @@ def create_article():
         # Salvar versão inicial
         version = article.save_version(current_user.id)
         history.version_id = version.id
-        
         db.session.commit()
         
         flash('Artigo criado com sucesso!', 'success')
@@ -180,7 +187,7 @@ def edit_article(article_id):
         content = request.form.get('content')
         category_id = request.form.get('category_id')
         tag_ids = request.form.getlist('tags')
-        status = request.form.get('status')
+        status = request.form.get('status') or 'rascunho'
         
         # Validar dados
         if not title or not content or not category_id:
@@ -225,7 +232,6 @@ def edit_article(article_id):
         # Salvar nova versão
         version = article.save_version(current_user.id)
         history.version_id = version.id
-        
         db.session.commit()
         
         flash('Artigo atualizado com sucesso!', 'success')
@@ -280,7 +286,7 @@ def view_version(article_id, version_id):
 @login_required
 def assign_editor(article_id):
     if not current_user.is_admin():
-        flash('Apenas administradores podem atribuir editores.', 'danger')
+        flash('Você não tem permissão para atribuir editores.', 'danger')
         return redirect(url_for('articles.view_article', article_id=article_id))
     
     article = Article.query.get_or_404(article_id)
@@ -289,14 +295,57 @@ def assign_editor(article_id):
     if editor_id:
         editor = User.query.get(editor_id)
         if not editor or not editor.is_editor():
-            flash('Editor inválido selecionado.', 'danger')
+            flash('Editor inválido.', 'danger')
             return redirect(url_for('articles.view_article', article_id=article_id))
         
         article.assigned_editor_id = editor_id
+        flash(f'Editor atribuído com sucesso.', 'success')
     else:
         article.assigned_editor_id = None
+        flash('Atribuição de editor removida.', 'success')
     
     db.session.commit()
-    
-    flash('Editor atribuído com sucesso!', 'success')
     return redirect(url_for('articles.view_article', article_id=article_id))
+
+@articles_bp.route('/<int:article_id>/pdf')
+@login_required
+def generate_pdf(article_id):
+    article = Article.query.get_or_404(article_id)
+    
+    # Verificar permissão
+    if not article.is_viewable_by(current_user):
+        flash('Você não tem permissão para visualizar este artigo.', 'danger')
+        return redirect(url_for('articles.list_articles'))
+    
+    # Preparar dados para o template
+    user_name = current_user.full_name or current_user.username
+    generated_at = datetime.now().strftime('%d/%m/%Y %H:%M')
+    
+    # Renderizar o template HTML
+    html_content = render_template(
+        'articles/article_pdf.html',
+        article=article,
+        user_name=user_name,
+        generated_at=generated_at
+    )
+    
+    # Criar arquivo PDF temporário
+    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_file:
+        # Gerar PDF com WeasyPrint
+        HTML(string=html_content).write_pdf(
+            temp_file.name,
+            stylesheets=[
+                CSS(string='@page { size: A4; margin: 1cm }')
+            ]
+        )
+        temp_file_path = temp_file.name
+    
+    # Enviar o arquivo PDF como resposta
+    return send_file(
+        temp_file_path,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=f"{article.title.replace(' ', '_')}.pdf",
+        # Após o envio, o arquivo temporário será excluído
+        max_age=0
+    )
