@@ -20,9 +20,9 @@ class User(UserMixin, db.Model):
     active = db.Column(db.Boolean, default=True)
     
     # Relacionamentos
-    #articles_created = db.relationship('Article', backref='creator', lazy=True, foreign_keys='Article.created_by')
-    #articles_updated = db.relationship('Article', backref='updater', lazy=True, foreign_keys='Article.updated_by')
-    #files_uploaded = db.relationship('File', backref='uploader', lazy=True)
+    articles_created = db.relationship('Article', backref='creator', lazy=True, foreign_keys='Article.created_by')
+    articles_updated = db.relationship('Article', backref='updater', lazy=True, foreign_keys='Article.updated_by')
+    files_uploaded = db.relationship('File', backref='uploader', lazy=True)
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
