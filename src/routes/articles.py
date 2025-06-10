@@ -9,8 +9,6 @@ import uuid
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import io
-import tempfile
-from weasyprint import HTML, CSS
 
 articles_bp = Blueprint('articles', __name__, url_prefix='/articles')
 
@@ -187,7 +185,7 @@ def edit_article(article_id):
         content = request.form.get('content')
         category_id = request.form.get('category_id')
         tag_ids = request.form.getlist('tags')
-        status = request.form.get('status') or 'rascunho'
+        status = request.form.get('status')
         
         # Validar dados
         if not title or not content or not category_id:
@@ -307,9 +305,9 @@ def assign_editor(article_id):
     db.session.commit()
     return redirect(url_for('articles.view_article', article_id=article_id))
 
-@articles_bp.route('/<int:article_id>/pdf')
+@articles_bp.route('/<int:article_id>/print')
 @login_required
-def generate_pdf(article_id):
+def print_article(article_id):
     article = Article.query.get_or_404(article_id)
     
     # Verificar permissão
@@ -318,34 +316,11 @@ def generate_pdf(article_id):
         return redirect(url_for('articles.list_articles'))
     
     # Preparar dados para o template
-    user_name = current_user.full_name or current_user.username
-    generated_at = datetime.now().strftime('%d/%m/%Y %H:%M')
+    now = datetime.now()
     
-    # Renderizar o template HTML
-    html_content = render_template(
-        'articles/article_pdf.html',
+    return render_template(
+        'articles/print.html',
         article=article,
-        user_name=user_name,
-        generated_at=generated_at
-    )
-    
-    # Criar arquivo PDF temporário
-    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_file:
-        # Gerar PDF com WeasyPrint
-        HTML(string=html_content).write_pdf(
-            temp_file.name,
-            stylesheets=[
-                CSS(string='@page { size: A4; margin: 1cm }')
-            ]
-        )
-        temp_file_path = temp_file.name
-    
-    # Enviar o arquivo PDF como resposta
-    return send_file(
-        temp_file_path,
-        mimetype='application/pdf',
-        as_attachment=True,
-        download_name=f"{article.title.replace(' ', '_')}.pdf",
-        # Após o envio, o arquivo temporário será excluído
-        max_age=0
+        current_user=current_user,
+        now=now
     )

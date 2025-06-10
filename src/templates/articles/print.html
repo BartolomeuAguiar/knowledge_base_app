@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ article.title }} - Versão para Impressão{% endblock %}
+
+{% block styles %}
+<style>
+    @media print {
+        /* Esconder elementos que não devem ser impressos */
+        header, footer, nav, .no-print, .btn, .navbar, .sidebar {
+            display: none !important;
+        }
+        
+        /* Garantir que o conteúdo ocupe toda a página */
+        body {
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            font-size: 12pt;
+            line-height: 1.5;
+            background: #fff;
+            color: #000;
+        }
+        
+        /* Formatação do conteúdo */
+        .print-container {
+            width: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        
+        /* Quebras de página */
+        h1, h2 {
+            page-break-after: avoid;
+            page-break-inside: avoid;
+        }
+        
+        img, table, figure {
+            page-break-inside: avoid;
+        }
+        
+        /* Mostrar URLs após links */
+        a[href]:after {
+            content: " (" attr(href) ")";
+            font-size: 90%;
+        }
+        
+        /* Não mostrar URLs para links internos ou âncoras */
+        a[href^="#"]:after,
+        a[href^="javascript:"]:after {
+            content: "";
+        }
+        
+        /* Cabeçalho e rodapé de impressão */
+        @page {
+            margin: 2cm;
+        }
+        
+        /* Marca d'água */
+        .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+            font-size: 3em;
+            color: rgba(0, 0, 0, 0.05);
+            white-space: nowrap;
+            z-index: -1000;
+            pointer-events: none;
+        }
+    }
+    
+    /* Estilos para visualização na tela */
+    .print-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #fff;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .print-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .print-content img {
+        max-width: 100%;
+        height: auto;
+    }
+    
+    .print-footer {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+        font-size: 0.9em;
+        color: #666;
+        text-align: center;
+    }
+    
+    .print-metadata {
+        margin: 20px 0;
+        font-size: 0.9em;
+        color: #666;
+    }
+    
+    .print-category {
+        display: inline-block;
+        background-color: #f0f0f0;
+        padding: 3px 8px;
+        border-radius: 3px;
+        margin-right: 5px;
+    }
+    
+    .print-tags {
+        margin-top: 5px;
+    }
+    
+    .print-tag {
+        display: inline-block;
+        background-color: #e9ecef;
+        padding: 2px 6px;
+        border-radius: 3px;
+        margin-right: 5px;
+        font-size: 0.85em;
+    }
+    
+    .watermark {
+        display: none; /* Oculto na tela, visível apenas na impressão */
+    }
+    
+    @media screen {
+        .print-actions {
+            position: sticky;
+            top: 20px;
+            text-align: right;
+            z-index: 100;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Botões de ação (visíveis apenas na tela) -->
+    <div class="print-actions no-print mb-4">
+        <button onclick="window.print()" class="btn btn-primary">
+            <i class="fas fa-print me-2"></i>Imprimir / Salvar como PDF
+        </button>
+        <a href="{{ url_for('articles.view_article', article_id=article.id) }}" class="btn btn-outline-secondary ms-2">
+            <i class="fas fa-arrow-left me-2"></i>Voltar ao Artigo
+        </a>
+    </div>
+    
+    <!-- Marca d'água -->
+    <div class="watermark">
+        {{ current_user.username }} - {{ now.strftime('%d/%m/%Y') }}
+    </div>
+    
+    <!-- Conteúdo para impressão -->
+    <div class="print-container">
+        <div class="print-header">
+            <h1>{{ article.title }}</h1>
+        </div>
+        
+        <div class="print-metadata">
+            <div><strong>Categoria:</strong> <span class="print-category">{{ article.category.name }}</span></div>
+            
+            {% if article.tags %}
+            <div class="print-tags">
+                <strong>Tags:</strong>
+                {% for tag in article.tags %}
+                <span class="print-tag">{{ tag.name }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <div class="mt-2">
+                <strong>Criado por:</strong> {{ article.creator.full_name or article.creator.username }} em {{ article.created_at.strftime('%d/%m/%Y') }}
+                <br>
+                <strong>Última atualização:</strong> {{ article.updated_at.strftime('%d/%m/%Y') }}
+            </div>
+        </div>
+        
+        <div class="print-content">
+            {{ article.content|safe }}
+        </div>
+        
+        <div class="print-footer">
+            <p>Documento gerado em {{ now.strftime('%d/%m/%Y às %H:%M') }} por {{ current_user.full_name or current_user.username }}</p>
+            <p>Base de Conhecimento TIC - Documento Interno</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
